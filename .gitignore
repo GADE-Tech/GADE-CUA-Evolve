@@ -1,0 +1,40 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Trajectory and log output
+trajectories/
+trajectory/
+logs/
+log/
+*.log
+runs/
+outputs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
