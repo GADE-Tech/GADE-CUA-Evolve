@@ -1,0 +1,8 @@
+llm:
+  provider: openai
+  model: gpt-4.1-mini-example
+computer:
+  provider: local_stub
+max_steps: 10
+trajectory:
+  output_dir: trajectories/openai-example
