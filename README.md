@@ -1,5 +1,6 @@
 # GADE CUA Evolve
 
+
 GADE CUA Evolve provides a lightweight command-line interface and Python API for running computer-use tasks with configurable LLM and computer providers.
 
 ## CLI usage
@@ -48,3 +49,14 @@ run_task("Open the example page and summarize it", config)
 ```
 
 A complete script is available at [`examples/run_basic.py`](examples/run_basic.py).
+
+This repository contains a minimal provider interface for executing generated `pyautogui` actions through controlled computer providers.
+
+## Safety
+
+Generated `pyautogui` code can control the keyboard, mouse, windows, files, browser sessions, and other local resources exposed to the process. Treat generated actions as untrusted automation.
+
+* Execute generated code only inside an isolated virtual machine or similarly disposable sandbox.
+* Do not run generated `pyautogui` actions directly on a personal or primary host machine.
+* Providers must enforce operational controls, including execution timeouts, stdout/stderr logging, action audit logs, and the minimum permissions required for the target environment.
+
