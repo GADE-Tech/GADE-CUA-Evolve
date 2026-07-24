@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gade-cua-evolve"
+version = "0.1.0"
+description = "CLI and Python API for GADE CUA Evolve tasks"
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+gade-cua = "gade_cua_evolve.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
