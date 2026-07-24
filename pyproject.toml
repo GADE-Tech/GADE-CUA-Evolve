@@ -1,16 +1,14 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "gade-cua-evolve"
 version = "0.1.0"
-description = "CLI and Python API for GADE CUA Evolve tasks"
+description = "GADE CUA Evolve"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0"]
+dependencies = []
 
-[project.scripts]
-gade-cua = "gade_cua_evolve.cli:main"
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
+google = ["google-genai>=1.0.0"]
