@@ -1,6 +1,5 @@
-"""Agent implementations."""
+"""Agent abstractions and implementations."""
 
-from .base import BaseAgent
-from .react import ReactAgent
+from .base import AgentAction, AgentObservation, BaseAgent
 
-__all__ = ["BaseAgent", "ReactAgent"]
+__all__ = ["AgentAction", "AgentObservation", "BaseAgent"]
