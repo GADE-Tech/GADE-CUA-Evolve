@@ -1,61 +1,62 @@
 # GADE CUA Evolve
 
-GADE CUA Evolve is a Python package scaffold for experimenting with evolutionary loops around computer-use agents. The project is intended to provide a clean foundation for composing agents, LLM adapters, provider integrations, and evaluation or improvement loops.
 
-## Project goals
+GADE CUA Evolve provides a lightweight command-line interface and Python API for running computer-use tasks with configurable LLM and computer providers.
 
-- Define a standard Python package layout for reusable agent components.
-- Keep agent logic, loop orchestration, LLM access, and external providers separated.
-- Expose a small command-line entry point for smoke testing and future workflows.
-- Provide a testable baseline that can grow into GADE-style computer-use agent experiments.
+## CLI usage
 
-## Installation
-
-Install the package in editable mode from the repository root:
+Run a task with a YAML or JSON configuration file:
 
 ```bash
-python -m pip install -e .
+gade-cua run --task "Open the example page and summarize it" --config examples/config.openai.yaml
 ```
 
-For development tools, install the `dev` optional dependencies:
+Validate a task and configuration without executing the run:
 
 ```bash
-python -m pip install -e '.[dev]'
+gade-cua dry-run --task "Open the example page and summarize it"
 ```
 
-For LLM provider integrations, install the `llm` optional dependencies:
+Configuration files may be YAML or JSON and can define the LLM provider, model name, computer provider, maximum steps, and trajectory output directory. See [`examples/config.openai.yaml`](examples/config.openai.yaml):
 
-```bash
-python -m pip install -e '.[llm]'
+```yaml
+llm:
+  provider: openai
+  model: gpt-4.1-mini-example
+computer:
+  provider: local_stub
+max_steps: 10
+trajectory:
+  output_dir: trajectories/openai-example
 ```
 
-## Minimal running example
+## Python API usage
 
-After installation, run the console script:
-
-```bash
-gade-cua
-```
-
-You can also invoke the module directly from Python:
+Use `RunConfig` and `run_task` directly from Python:
 
 ```python
-from gade_cua_evolve.cli import main
+from gade_cua_evolve import RunConfig, run_task
 
-main()
+config = RunConfig(
+    llm_provider="openai",
+    model_name="gpt-4.1-mini-example",
+    computer_provider="local_stub",
+    max_steps=5,
+    trajectory_output_dir="trajectories/basic-example",
+)
+
+run_task("Open the example page and summarize it", config)
 ```
 
-Both entry points currently print a short readiness message while the package architecture is being expanded.
+A complete script is available at [`examples/run_basic.py`](examples/run_basic.py).
 
-## Architecture
+This repository contains a minimal provider interface for executing generated `pyautogui` actions through controlled computer providers.
 
-```text
-src/gade_cua_evolve/
-├── agents/      # Agent abstractions and implementations
-├── loops/       # Evaluation, evolution, and orchestration loops
-├── llm/         # LLM client interfaces and adapters
-├── providers/   # External service, environment, and tool providers
-└── cli.py       # Console-script entry point
-```
+## Safety
 
-The package uses a `src/` layout to avoid accidental imports from the repository root and to keep tests aligned with installed-package behavior.
+Generated `pyautogui` code can control the keyboard, mouse, windows, files, browser sessions, and other local resources exposed to the process. Treat generated actions as untrusted automation.
+
+* Execute generated code only inside an isolated virtual machine or similarly disposable sandbox.
+* Do not run generated `pyautogui` actions directly on a personal or primary host machine.
+* Providers must enforce operational controls, including execution timeouts, stdout/stderr logging, action audit logs, and the minimum permissions required for the target environment.
+
