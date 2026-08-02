@@ -1,62 +1,73 @@
 # GADE CUA Evolve
 
+A composable runtime for computer-use agents.
 
-GADE CUA Evolve provides a lightweight command-line interface and Python API for running computer-use tasks with configurable LLM and computer providers.
+## Architecture
 
-## CLI usage
+The package has four independent layers:
 
-Run a task with a YAML or JSON configuration file:
+1. `AgentLoop`: schedules one or more agents and owns the task lifecycle.
+2. `Agent`: owns prompts, the internal conversation loop, and action generation.
+3. `Client`: hides OpenAI-compatible and Google GenAI SDK differences.
+4. `EnvAdapter`: normalizes environments; OSWorld and a safe no-op adapter are included.
+
+`GTA15Agent` ports the tool protocol and closed-loop behavior from OSWorld's
+`mm_agents/gta1/gta15_agent.py`. It uses Google GenAI `generateContent` for both
+planning and GUI grounding. Grounding points use Gemini's normalized 1000x1000
+coordinate system. Each decision attempt makes one planning request; GTA1's
+multi-action sampling and judge selection are intentionally not included.
+
+## Install
 
 ```bash
-gade-cua run --task "Open the example page and summarize it" --config examples/config.openai.yaml
+pip install -e ".[google,dev]"
+cp .env.example .env
 ```
 
-Validate a task and configuration without executing the run:
+Install OSWorld separately so the core package stays light:
 
 ```bash
-gade-cua dry-run --task "Open the example page and summarize it"
+pip install -e "/Users/bofeizhang/Documents/GADE Projects/OSWorld"
 ```
 
-Configuration files may be YAML or JSON and can define the LLM provider, model name, computer provider, maximum steps, and trajectory output directory. See [`examples/config.openai.yaml`](examples/config.openai.yaml):
+## CLI
 
-```yaml
-llm:
-  provider: openai
-  model: gpt-4.1-mini-example
-computer:
-  provider: local_stub
-max_steps: 10
-trajectory:
-  output_dir: trajectories/openai-example
+```bash
+gade-cua config show --config configs/default.yaml
+gade-cua list agents
+gade-cua env probe --config configs/osworld_qwen3vl.yaml
+gade-cua run --config configs/volcengine_gta15_gemini.yaml \
+  --instruction "Open Firefox and visit example.com"
+gade-cua run --config configs/openrouter_qwen35.yaml --instruction "..."
+gade-cua run --config configs/osworld_qwen3vl.yaml \
+  --instruction "Open Firefox and visit example.com"
 ```
 
-## Python API usage
+Override any non-secret setting with dotted keys:
 
-Use `RunConfig` and `run_task` directly from Python:
-
-```python
-from gade_cua_evolve import RunConfig, run_task
-
-config = RunConfig(
-    llm_provider="openai",
-    model_name="gpt-4.1-mini-example",
-    computer_provider="local_stub",
-    max_steps=5,
-    trajectory_output_dir="trajectories/basic-example",
-)
-
-run_task("Open the example page and summarize it", config)
+```bash
+gade-cua run --config configs/default.yaml --instruction "..." \
+  --set loop.max_steps=5 --set agent.coordinate_type=absolute
 ```
 
-A complete script is available at [`examples/run_basic.py`](examples/run_basic.py).
+YAML contains only non-sensitive settings. API keys and cloud credentials belong
+in `.env`. Runs write `result.json`, `traj.jsonl`, and screenshots under `results/`.
 
-This repository contains a minimal provider interface for executing generated `pyautogui` actions through controlled computer providers.
+For GTA15, set `GEMINI_AK` and optionally override `GEMINI_MODEL` in `.env`.
+For Volcengine, the local OSWorld checkout accepts either `VOLCENGINE_*` or its
+legacy `VOLCANO_ENGINE_*` credential names. The
+`configs/volcengine_gta15_gemini.yaml` allocates a disposable ECS instance for each
+run and deletes it during environment cleanup. Set `env.path_to_vm` only when a run
+must target an existing instance.
+
+## Extending
+
+- Implement `EnvAdapter` and register it in `registry.py` to add an environment.
+- Implement `Agent.predict` to add an agent.
+- Override `AgentLoop.select_agent` for round-robin or router scheduling.
 
 ## Safety
 
-Generated `pyautogui` code can control the keyboard, mouse, windows, files, browser sessions, and other local resources exposed to the process. Treat generated actions as untrusted automation.
-
-* Execute generated code only inside an isolated virtual machine or similarly disposable sandbox.
-* Do not run generated `pyautogui` actions directly on a personal or primary host machine.
-* Providers must enforce operational controls, including execution timeouts, stdout/stderr logging, action audit logs, and the minimum permissions required for the target environment.
-
+Model-generated actions are untrusted. Execute them only in an isolated,
+disposable environment such as an OSWorld VM. Host-side action execution is
+intentionally unsupported.

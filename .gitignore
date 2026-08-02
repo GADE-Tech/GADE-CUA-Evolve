@@ -30,10 +30,9 @@ log/
 *.log
 runs/
 outputs/
+results/
 
 # Environment files
 .env
 .env.*
 !.env.example
-__pycache__/
-*.py[cod]
