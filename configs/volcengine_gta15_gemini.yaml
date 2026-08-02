@@ -1,0 +1,40 @@
+llm:
+  provider: google
+  model: gemini-3.5-flash-lite
+  model_env: GEMINI_MODEL
+  api_key_env: GEMINI_AK
+  base_url_env: null
+  max_tokens: 16384
+  temperature: 0.0
+  top_p: 0.9
+  max_retries: 10
+agent:
+  name: gta15
+  history_n: 8
+  coordinate_type: relative
+  platform: ubuntu
+  internal_retries: 3
+  grounding_model: null
+  grounding_max_tokens: 512
+  dump_messages: false
+env:
+  name: osworld
+  provider_name: volcengine
+  region: ap-southeast-1
+  # Allocate a disposable instance from VOLCENGINE_IMAGE_ID for every run.
+  path_to_vm: null
+  snapshot_name: image-yery9soico9at9tlox9v
+  action_space: pyautogui
+  headless: true
+  screen_size: [1920, 1080]
+  require_a11y_tree: false
+  require_terminal: false
+  os_type: Ubuntu
+  boot_wait_seconds: 0
+loop:
+  name: react
+  max_steps: 15
+  sleep_after_action: 0.3
+  settle_seconds: 20
+  output_dir: results
+  record_video: true
