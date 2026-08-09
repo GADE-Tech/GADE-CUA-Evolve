@@ -26,6 +26,15 @@ class StepOutcome:
     info: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(slots=True)
+class InspectionResult:
+    language: str
+    status: str
+    output: str = ""
+    error: str = ""
+    returncode: int | None = None
+
+
 class EnvAdapter(ABC):
     """Normalize an external desktop runtime for agent loops."""
 
@@ -40,6 +49,15 @@ class EnvAdapter(ABC):
 
     def evaluate(self) -> float:
         return 0.0
+
+    def inspect_gui(self, action: str, pause: float = 0.3) -> StepOutcome:
+        """Execute a verifier navigation action through the environment boundary."""
+        return self.step(action, pause)
+
+    def run_inspection(
+        self, language: str, code: str, timeout: int = 60
+    ) -> InspectionResult:
+        raise NotImplementedError(f"{type(self).__name__} does not support VM code inspection")
 
     def close(self) -> None:
         pass

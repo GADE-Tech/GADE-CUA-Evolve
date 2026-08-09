@@ -1,16 +1,15 @@
-"""GTA1.5 tool declarations, Gemini grounding, and OSWorld action rendering."""
+"""GTA1.5 tool declarations and OSWorld action rendering."""
 
 from __future__ import annotations
 
-import base64
-import json
-import re
 from io import BytesIO
 from typing import Any
 
 from PIL import Image
 
-from gade_cua_evolve.llm import Client, ToolCall
+from gade_cua_evolve.llm import ToolCall
+
+from .grounding import Grounder
 
 
 def _function(name: str, description: str, properties: dict[str, Any], required: list[str]) -> dict:
@@ -155,72 +154,6 @@ CUA_TOOLS = [
 ]
 
 
-GROUNDING_SYSTEM_PROMPT = """You are a precise GUI grounding model. Locate the single target requested by
-the user in the supplied screenshot. Return a point in the center of that target using normalized
-1000x1000 image coordinates: x=0 is the left edge, x=1000 the right edge, y=0 the top edge,
-and y=1000 the bottom edge. Return JSON only as {"x": integer, "y": integer}."""
-
-GROUNDING_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "x": {"type": "integer", "minimum": 0, "maximum": 1000},
-        "y": {"type": "integer", "minimum": 0, "maximum": 1000},
-    },
-    "required": ["x", "y"],
-    "additionalProperties": False,
-}
-
-
-def _data_url(image: bytes) -> str:
-    encoded = base64.b64encode(image).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
-
-
-def _json_object(text: str) -> dict[str, Any]:
-    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
-    try:
-        value = json.loads(cleaned)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if not match:
-            raise ValueError(f"Grounding response is not JSON: {text!r}") from None
-        value = json.loads(match.group(0))
-    if not isinstance(value, dict):
-        raise TypeError("Grounding response must be a JSON object")
-    return value
-
-
-class GeminiGrounder:
-    """Ground referring expressions to Gemini's normalized 1000x1000 points."""
-
-    def __init__(self, llm: Client, model: str | None = None, max_tokens: int = 512) -> None:
-        self.llm = llm
-        self.model = model
-        self.max_tokens = max_tokens
-
-    def locate(self, screenshot: bytes, description: str) -> tuple[float, float]:
-        response = self.llm.complete(
-            [
-                {"role": "system", "content": GROUNDING_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": _data_url(screenshot)}},
-                        {"type": "text", "text": description},
-                    ],
-                },
-            ],
-            model=self.model or getattr(self.llm, "model", None),
-            max_tokens=self.max_tokens,
-            temperature=0.0,
-            response_schema=GROUNDING_SCHEMA,
-        )
-        point = _json_object(response.text)
-        x = min(1000.0, max(0.0, float(point["x"])))
-        y = min(1000.0, max(0.0, float(point["y"])))
-        return x / 1000.0, y / 1000.0
-
-
 SET_CELL_VALUES_CODE = """import uno
 import subprocess
 
@@ -259,7 +192,7 @@ for ref, value in CELL_VALUES.items():
 class GTA15ActionRenderer:
     """Turn GTA1.5 function calls into OSWorld pyautogui action strings."""
 
-    def __init__(self, grounder: GeminiGrounder, platform: str = "ubuntu") -> None:
+    def __init__(self, grounder: Grounder, platform: str = "ubuntu") -> None:
         self.grounder = grounder
         self.platform = "linux" if platform == "ubuntu" else platform
 

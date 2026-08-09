@@ -5,6 +5,7 @@ import pytest
 from PIL import Image
 
 from gade_cua_evolve.agents import GTA15Agent
+from gade_cua_evolve.agents.grounding import Grounder
 from gade_cua_evolve.config import AgentConfig
 from gade_cua_evolve.envs import Observation, StepOutcome
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
@@ -34,6 +35,15 @@ class FakeGeminiClient(Client):
         return [call for call in self.calls if "tools" in call[1]]
 
 
+class FakeGrounder(Grounder):
+    def locate(self, screenshot: bytes, description: str) -> tuple[float, float]:
+        return 0.5, 0.25
+
+
+def gta_agent(client: Client, **config) -> GTA15Agent:
+    return GTA15Agent(client, AgentConfig(name="gta15", **config), FakeGrounder())
+
+
 def call(name: str, **arguments) -> LLMResponse:
     return LLMResponse(
         text="Use the selected tool.",
@@ -43,12 +53,24 @@ def call(name: str, **arguments) -> LLMResponse:
 
 def test_each_valid_decision_uses_one_main_model_request() -> None:
     client = FakeGeminiClient([call("hotkey", keys=["ctrl", "l"])])
-    agent = GTA15Agent(client, AgentConfig(name="gta15", internal_retries=3))
+    agent = gta_agent(client, internal_retries=3)
 
     result = agent.predict("Focus the address bar", Observation(screenshot=screenshot()))
 
     assert len(client.main_calls) == 1
     assert result.actions == ["import pyautogui; pyautogui.hotkey('ctrl', 'l')"]
+
+
+def test_feedback_before_first_prediction_keeps_system_message_first() -> None:
+    client = FakeGeminiClient([call("hotkey", keys=["ctrl", "l"])])
+    agent = gta_agent(client)
+    agent.on_feedback("Check the exact setting")
+
+    agent.predict("Focus the address bar", Observation(screenshot=screenshot()))
+
+    messages = client.main_calls[0][0]
+    assert messages[0]["role"] == "system"
+    assert "Check the exact setting" in str(messages[-1]["content"])
 
 
 def test_grounding_and_action_result_close_the_context_loop() -> None:
@@ -59,12 +81,12 @@ def test_grounding_and_action_result_close_the_context_loop() -> None:
             LLMResponse(text="TERMINATE"),
         ]
     )
-    agent = GTA15Agent(client, AgentConfig(name="gta15"))
+    agent = gta_agent(client)
 
     first = agent.predict("Click the button", Observation(screenshot=image))
     assert "pyautogui.click(100, 25" in first.actions[0]
     assert len(client.main_calls) == 1
-    assert len(client.calls) == 2  # one main request plus one grounding request
+    assert len(client.calls) == 1  # grounding uses its own injected model/client
 
     agent.on_action_result(
         first,
@@ -87,7 +109,7 @@ def test_grounding_and_action_result_close_the_context_loop() -> None:
 
 def test_missing_tool_call_retries_then_waits() -> None:
     client = FakeGeminiClient([LLMResponse(text="not actionable"), LLMResponse(text="still no call")])
-    agent = GTA15Agent(client, AgentConfig(name="gta15", internal_retries=2))
+    agent = gta_agent(client, internal_retries=2)
 
     result = agent.predict("Do something", Observation(screenshot=screenshot()))
 
@@ -105,7 +127,7 @@ def test_multiple_tool_calls_are_rejected_and_retried() -> None:
         ),
     )
     client = FakeGeminiClient([invalid, call("hotkey", keys=["ctrl", "a"])])
-    agent = GTA15Agent(client, AgentConfig(name="gta15", internal_retries=2))
+    agent = gta_agent(client, internal_retries=2)
 
     result = agent.predict("Select all", Observation(screenshot=screenshot()))
 
@@ -120,7 +142,7 @@ def test_multiple_tool_calls_are_rejected_and_retried() -> None:
 )
 def test_terminal_responses(text: str, expected: str) -> None:
     client = FakeGeminiClient([LLMResponse(text=text)])
-    agent = GTA15Agent(client, AgentConfig(name="gta15"))
+    agent = gta_agent(client)
 
     result = agent.predict("Finish", Observation(screenshot=screenshot()))
 

@@ -19,12 +19,23 @@ class TrajectoryRecorder:
         self.task = task
         self.config = config
         self.trajectory_path = self.directory / "traj.jsonl"
+        self.events_path = self.directory / "events.jsonl"
         self.action_count = 0
 
     def record_initial(self, observation: Observation) -> None:
         """Persist the post-reset state that the first model request observes."""
         if observation.screenshot:
             (self.directory / "initial_screenshot.png").write_bytes(observation.screenshot)
+
+    def record_event(self, kind: str, message: str = "", **payload: Any) -> None:
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "kind": kind,
+            "message": message,
+            "payload": payload,
+        }
+        with self.events_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, default=str) + "\n")
 
     def record(
         self,
@@ -61,13 +72,27 @@ class TrajectoryRecorder:
                 observation.screenshot
             )
 
-    def finish(self, *, score: float, done: bool, predict_steps: int) -> None:
+    def finish(
+        self,
+        *,
+        score: float | None,
+        done: bool,
+        predict_steps: int,
+        status: str = "finished",
+        arm_verdict: str | None = None,
+        arm_feedback: list[str] | None = None,
+        episodes: int = 1,
+    ) -> None:
         result = {
             "task": self.task.model_dump(mode="json"),
             "score": score,
             "done": done,
             "predict_steps": predict_steps,
             "action_steps": self.action_count,
+            "status": status,
+            "arm_verdict": arm_verdict,
+            "arm_feedback": arm_feedback or [],
+            "episodes": episodes,
             "config": self.config.model_dump(mode="json") if self.config else None,
         }
         (self.directory / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

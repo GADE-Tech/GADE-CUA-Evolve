@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from gade_cua_evolve.config import EnvConfig, TaskSpec
 
-from .base import EnvAdapter, Observation, StepOutcome
+from .base import EnvAdapter, InspectionResult, Observation, StepOutcome
 
 
 class OSWorldEnv(EnvAdapter):
@@ -65,6 +65,25 @@ class OSWorldEnv(EnvAdapter):
 
     def evaluate(self) -> float:
         return float(self.env.evaluate())
+
+    def run_inspection(
+        self, language: str, code: str, timeout: int = 60
+    ) -> InspectionResult:
+        normalized = language.strip().lower()
+        if normalized == "python":
+            result = self.env.controller.run_python_script(code)
+        elif normalized == "bash":
+            result = self.env.controller.run_bash_script(code, timeout=timeout)
+        else:
+            return InspectionResult(normalized, "error", error="Unsupported language")
+        payload = result if isinstance(result, dict) else {}
+        return InspectionResult(
+            language=normalized,
+            status=str(payload.get("status", "error")),
+            output=str(payload.get("output", "") or ""),
+            error=str(payload.get("error", "") or payload.get("message", "") or ""),
+            returncode=payload.get("returncode"),
+        )
 
     def close(self) -> None:
         self.env.close()

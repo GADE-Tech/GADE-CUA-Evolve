@@ -11,7 +11,9 @@ from typing import Annotated
 
 import typer
 
+from .batch import BatchOptions, run_batch
 from .config import RunConfig, TaskSpec, load_config
+from .controller import RunController
 from .logging_utils import configure_logging
 from .registry import AGENTS, ENVS, LOOPS, build_components
 from .trajectory import TrajectoryRecorder
@@ -30,9 +32,24 @@ ENV_PROFILES = {
 TASK_REF_PATTERN = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9_-]+$")
 
 
-def run_task(task: TaskSpec, config: RunConfig):
+def run_task(
+    task: TaskSpec,
+    config: RunConfig,
+    *,
+    arm_enabled: bool = False,
+    evaluate: bool = False,
+    controller: RunController | None = None,
+):
+    if evaluate and not task.has_native_evaluator:
+        raise typer.BadParameter("--evaluate requires an OSWorld task with a native evaluator")
     recorder = TrajectoryRecorder(config.loop.output_dir, task, config)
-    _, _, loop = build_components(config, recorder)
+    _, _, loop = build_components(
+        config,
+        recorder,
+        controller=controller,
+        arm_enabled=arm_enabled,
+        evaluate_at_end=evaluate,
+    )
     return loop.run(task)
 
 
@@ -75,6 +92,8 @@ def run_task_reference(
     overrides: list[str] | None = None,
     output_dir: Path | None = None,
     verbose: bool = False,
+    arm_enabled: bool = False,
+    evaluate: bool = False,
 ) -> None:
     configure_logging(verbose)
     config_path = resolve_env_profile(env_name)
@@ -84,7 +103,7 @@ def run_task_reference(
     effective_overrides.append(f"loop.output_dir={json.dumps(str(result_root))}")
     config = load_config(config_path, effective_overrides)
     task = load_task(resolve_osworld_task(task_ref))
-    result = run_task(task, config)
+    result = run_task(task, config, arm_enabled=arm_enabled, evaluate=evaluate)
     payload = asdict(result)
     payload["task"] = result.task.model_dump(mode="json")
     typer.echo(json.dumps(payload, default=str, indent=2))
@@ -99,15 +118,31 @@ def main(
     ] = None,
     overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
     output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/volcengine_gta15_gemini.yaml"
+    ),
+    arm_enabled: Annotated[bool, typer.Option("--arm", help="Enable ARM feedback.")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate", help="Run native evaluator.")] = False,
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
 ) -> None:
-    """Run a task directly when --env and --task are supplied without a subcommand."""
+    """Launch the TUI, or run a benchmark task when --env and --task are supplied."""
     if context.invoked_subcommand is not None:
         return
-    if env_name is None and task_ref is None:
-        typer.echo(context.get_help())
+    if env_name is None:
+        configure_logging(verbose)
+        from .tui import run_tui
+
+        effective_overrides = list(overrides or [])
+        if output_dir:
+            effective_overrides.append(f"loop.output_dir={json.dumps(str(output_dir))}")
+        initial_task = load_task(resolve_osworld_task(task_ref)) if task_ref else None
+        run_tui(
+            load_config(config_path, effective_overrides),
+            arm_enabled=arm_enabled,
+            task=initial_task,
+        )
         return
-    if not env_name or not task_ref:
+    if not task_ref:
         raise typer.BadParameter("Provide both --env and --task")
     run_task_reference(
         env_name,
@@ -115,7 +150,124 @@ def main(
         overrides=overrides,
         output_dir=output_dir,
         verbose=verbose,
+        arm_enabled=arm_enabled,
+        evaluate=evaluate,
     )
+
+
+@app.command("exec")
+def exec_command(
+    prompt: Annotated[str | None, typer.Argument(help="Free-form desktop task prompt.")] = None,
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/volcengine_gta15_gemini.yaml"
+    ),
+    env_name: Annotated[str | None, typer.Option("--env")] = None,
+    task_ref: Annotated[str | None, typer.Option("--task")] = None,
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    """Execute a free-form prompt or an OSWorld task without the TUI."""
+    benchmark_mode = bool(env_name or task_ref)
+    if bool(prompt) == benchmark_mode:
+        raise typer.BadParameter("Provide either PROMPT or both --env and --task")
+    if benchmark_mode:
+        if not env_name or not task_ref:
+            raise typer.BadParameter("Provide both --env and --task")
+        run_task_reference(
+            env_name,
+            task_ref,
+            overrides=overrides,
+            output_dir=output_dir,
+            verbose=verbose,
+            arm_enabled=arm_enabled,
+            evaluate=evaluate,
+        )
+        return
+    configure_logging(verbose)
+    effective_overrides = list(overrides or [])
+    if output_dir:
+        effective_overrides.append(f"loop.output_dir={json.dumps(str(output_dir))}")
+    config = load_config(config_path, effective_overrides)
+    result = run_task(
+        TaskSpec(instruction=prompt or ""),
+        config,
+        arm_enabled=arm_enabled,
+        evaluate=evaluate,
+    )
+    payload = asdict(result)
+    payload["task"] = result.task.model_dump(mode="json")
+    typer.echo(json.dumps(payload, default=str, indent=2))
+
+
+@app.command("batch")
+def batch_command(
+    manifest: Annotated[
+        Path | None,
+        typer.Option("--manifest", help="OSWorld domain-to-task manifest JSON."),
+    ] = None,
+    config_path: Annotated[
+        Path | None,
+        typer.Option("--config", exists=True, help="Run configuration; overrides --env."),
+    ] = None,
+    env_name: Annotated[str, typer.Option("--env", help="Environment profile.")] = "osworldv1",
+    output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    domains: Annotated[
+        list[str] | None,
+        typer.Option("--domain", help="Domain or comma-separated domains; repeatable."),
+    ] = None,
+    limit: Annotated[int | None, typer.Option("--limit", min=1)] = None,
+    workers: Annotated[int, typer.Option("--workers", min=1)] = 1,
+    resume: Annotated[bool, typer.Option("--resume/--no-resume")] = True,
+    shard_index: Annotated[int, typer.Option("--shard-index", min=0)] = 0,
+    num_shards: Annotated[int, typer.Option("--num-shards", min=1)] = 1,
+    infra_retries: Annotated[int, typer.Option("--infra-retries", min=0)] = 1,
+    task_timeout: Annotated[
+        float,
+        typer.Option("--task-timeout", min=0, help="Seconds; 0 disables the timeout."),
+    ] = 0,
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    """Run an OSWorld manifest with process isolation, resume, and aggregation."""
+    osworld_root = Path(os.getenv("OSWORLD_ROOT", DEFAULT_OSWORLD_ROOT)).resolve()
+    manifest_path = manifest or osworld_root / "evaluation_examples" / "test_nogdrive.json"
+    if not manifest_path.is_file():
+        raise typer.BadParameter(f"Batch manifest does not exist: {manifest_path}")
+    selected_config = config_path or resolve_env_profile(env_name)
+    suffix = "arm" if arm_enabled else "baseline"
+    selected_output = output_dir or Path("results") / "batch" / f"{manifest_path.stem}-{suffix}"
+    try:
+        summary = run_batch(
+            BatchOptions(
+                manifest=manifest_path,
+                config=selected_config,
+                osworld_root=osworld_root,
+                output_dir=selected_output,
+                domains=tuple(domains or ()),
+                limit=limit,
+                workers=workers,
+                resume=resume,
+                shard_index=shard_index,
+                num_shards=num_shards,
+                infra_retries=infra_retries,
+                task_timeout=task_timeout or None,
+                arm=arm_enabled,
+                evaluate=evaluate,
+                overrides=tuple(overrides or ()),
+                verbose=verbose,
+                workdir=REPOSITORY_ROOT,
+            )
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(json.dumps(asdict(summary), indent=2))
+    if summary.infra_failed:
+        raise typer.Exit(code=1)
 
 
 @app.command("run")
@@ -126,6 +278,8 @@ def run_command(
     instruction: Annotated[str | None, typer.Option("--instruction")] = None,
     task_file: Annotated[Path | None, typer.Option("--task-file", exists=True)] = None,
     overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
 ) -> None:
     if bool(instruction) == bool(task_file):
@@ -133,7 +287,7 @@ def run_command(
     configure_logging(verbose)
     config = load_config(config_path, overrides)
     task = TaskSpec(instruction=instruction or "") if instruction else load_task(task_file)
-    result = run_task(task, config)
+    result = run_task(task, config, arm_enabled=arm_enabled, evaluate=evaluate)
     payload = asdict(result)
     payload["task"] = result.task.model_dump(mode="json")
     typer.echo(json.dumps(payload, default=str, indent=2))
@@ -173,3 +327,7 @@ def list_components(kind: Annotated[str, typer.Argument(help="agents, envs, or l
     if kind not in registries:
         raise typer.BadParameter("kind must be agents, envs, or loops")
     typer.echo("\n".join(sorted(registries[kind])))
+
+
+if __name__ == "__main__":
+    app()
