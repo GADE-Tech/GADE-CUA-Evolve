@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from gade_cua_evolve.cli import load_task
-from gade_cua_evolve.config import load_config, resolve_env
+from gade_cua_evolve.config import TaskSpec, load_config, resolve_env
 
 
 def test_load_config_and_override() -> None:
@@ -34,3 +34,19 @@ def test_osworld_task_file_is_normalized(tmp_path) -> None:
     task = load_task(path)
     assert task.id == "x"
     assert task.raw["evaluator"]["func"] == "infeasible"
+
+
+def test_three_model_profile_and_public_task_view() -> None:
+    config = load_config("configs/volcengine_gta15_gemini.yaml")
+    assert config.grounder is not None
+    assert config.grounder.max_turns == 5
+    assert config.arm is not None
+    assert config.arm.enable_trajectory_check is True
+
+    task = TaskSpec(
+        id="private",
+        instruction="do it",
+        raw={"evaluator": {"expected": "secret"}},
+    )
+    assert task.public_view().model_dump() == {"id": "private", "instruction": "do it"}
+    assert task.has_native_evaluator is True

@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2",
     "python-dotenv>=1",
     "pyyaml>=6",
+    "textual>=8.2,<9",
     "typer>=0.12",
 ]
 
@@ -20,7 +21,7 @@ dependencies = [
 openai = ["openai>=1.0.0"]
 google = ["google-genai>=1.0.0"]
 osworld = []
-dev = ["pytest>=8", "ruff>=0.5"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
 
 [project.scripts]
 gade-cua = "gade_cua_evolve.cli:app"

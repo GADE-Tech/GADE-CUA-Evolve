@@ -36,6 +36,29 @@ class LLMConfig(StrictModel):
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
+class GrounderConfig(LLMConfig):
+    """Independent multimodal model and semantic retry policy for GUI grounding."""
+
+    max_tokens: int = 512
+    max_turns: int = Field(default=5, ge=2, le=20)
+    semantic_retries: int = Field(default=3, ge=1, le=10)
+    crop_radius: int = Field(default=200, ge=32, le=1024)
+
+
+class ARMConfig(StrictModel):
+    """Agentic reward-model configuration; evaluator ground truth is never included."""
+
+    llm: LLMConfig = Field(default_factory=LLMConfig)
+    actor_steps_per_episode: int = Field(default=5, ge=1)
+    max_episodes: int = Field(default=3, ge=1)
+    max_judge_steps: int = Field(default=15, ge=1)
+    judge_pause: float = Field(default=0.3, ge=0.0)
+    enable_code_inspection: bool = True
+    code_timeout: int = Field(default=60, ge=1, le=300)
+    enable_trajectory_check: bool = True
+    trajectory_max_images: int = Field(default=12, ge=2, le=32)
+
+
 class AgentConfig(StrictModel):
     name: str = "qwen3vl"
     history_n: int = 4
@@ -44,8 +67,6 @@ class AgentConfig(StrictModel):
     dump_messages: bool = False
     output_dir: Path | None = None
     internal_retries: int = Field(default=3, ge=1, le=10)
-    grounding_model: str | None = None
-    grounding_max_tokens: int = Field(default=512, ge=64)
     image: ImageConfig = Field(default_factory=ImageConfig)
 
 
@@ -82,9 +103,24 @@ class TaskSpec(StrictModel):
     def as_osworld_config(self) -> dict[str, Any]:
         return {**self.raw, "id": self.id, "instruction": self.instruction}
 
+    def public_view(self) -> TaskPublicView:
+        """Return the only task fields that may be exposed to model agents."""
+        return TaskPublicView(id=self.id, instruction=self.instruction)
+
+    @property
+    def has_native_evaluator(self) -> bool:
+        return isinstance(self.raw.get("evaluator"), dict)
+
+
+class TaskPublicView(StrictModel):
+    id: str
+    instruction: str
+
 
 class RunConfig(StrictModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    grounder: GrounderConfig | None = None
+    arm: ARMConfig | None = None
     agent: AgentConfig = Field(default_factory=AgentConfig)
     env: EnvConfig = Field(default_factory=EnvConfig)
     loop: LoopConfig = Field(default_factory=LoopConfig)

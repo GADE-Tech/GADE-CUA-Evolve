@@ -64,9 +64,11 @@ Action: a short imperative describing the next UI action.
 Do not output anything else. To finish, call computer_use with action=terminate."""
 
 
-def instruction_prompt(instruction: str, actions: list[str]) -> str:
+def instruction_prompt(instruction: str, actions: list[str], feedbacks: list[str] | None = None) -> str:
     previous = "\n".join(f"Step {index + 1}: {action}" for index, action in enumerate(actions))
+    feedback = "\n\n".join(feedbacks or [])
     return (
         "Generate the next move from the screenshot, instruction, and previous actions.\n\n"
-        f"Instruction: {instruction}\n\nPrevious actions:\n{previous or 'None'}"
+        f"Instruction: {instruction}\n\nPrevious actions:\n{previous or 'None'}\n\n"
+        f"Human/verifier feedback:\n{feedback or 'None'}"
     )

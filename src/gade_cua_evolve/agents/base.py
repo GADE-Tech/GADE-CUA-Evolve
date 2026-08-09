@@ -46,3 +46,8 @@ class Agent(ABC):
 
     def on_action_result(self, step: AgentStep, action: str, outcome: Any) -> None:
         """Receive an executed action result; stateful agents may override this hook."""
+
+    def on_feedback(self, feedback: str) -> None:
+        """Receive human or verifier guidance before the next prediction."""
+        if feedback.strip():
+            self.state.feedbacks.append(feedback.strip())

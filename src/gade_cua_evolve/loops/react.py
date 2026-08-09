@@ -14,7 +14,7 @@ class ReActLoop(AgentLoop):
         done = False
         predict_steps = 0
         action_steps = 0
-        score = 0.0
+        score: float | None = None
         recording = False
         try:
             observation = self.env.reset(task)
@@ -26,7 +26,13 @@ class ReActLoop(AgentLoop):
                 self.env.start_recording()
                 recording = True
             while not done and predict_steps < self.config.max_steps:
+                if not self.controller.checkpoint():
+                    break
                 name, agent = self.select_agent(predict_steps, observation)
+                for feedback in self.controller.drain_feedback():
+                    agent.on_feedback(feedback)
+                    if self.recorder:
+                        self.recorder.record_event("human_feedback", feedback)
                 predicted = agent.predict(task.instruction, observation)
                 actions = predicted.actions or ["WAIT"]
                 for action in actions:
@@ -53,7 +59,10 @@ class ReActLoop(AgentLoop):
                 predict_steps += 1
             if self.config.settle_seconds:
                 time.sleep(self.config.settle_seconds)
-            score = self.env.evaluate()
+            if self.evaluate_at_end:
+                if not task.has_native_evaluator:
+                    raise ValueError("Native evaluation requires a task with an OSWorld evaluator")
+                score = self.env.evaluate()
         finally:
             try:
                 if recording:
@@ -65,7 +74,12 @@ class ReActLoop(AgentLoop):
                     self.env.close()
                 finally:
                     if self.recorder:
-                        self.recorder.finish(score=score, done=done, predict_steps=predict_steps)
+                        self.recorder.finish(
+                            score=score,
+                            done=done,
+                            predict_steps=predict_steps,
+                            status="cancelled" if self.controller.cancelled else "finished",
+                        )
         return RunResult(
             task=task,
             score=score,
@@ -73,4 +87,5 @@ class ReActLoop(AgentLoop):
             predict_steps=predict_steps,
             action_steps=action_steps,
             output_dir=str(self.recorder.directory) if self.recorder else None,
+            status="cancelled" if self.controller.cancelled else "finished",
         )

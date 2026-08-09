@@ -8,14 +8,40 @@ llm:
   temperature: 0.0
   top_p: 0.9
   max_retries: 10
+grounder:
+  provider: google
+  model: gemini-3.5-flash-lite
+  model_env: GEMINI_MODEL
+  api_key_env: GEMINI_AK
+  base_url_env: null
+  max_tokens: 512
+  max_retries: 5
+  max_turns: 5
+  semantic_retries: 3
+  crop_radius: 200
+arm:
+  llm:
+    provider: google
+    model: gemini-3.5-flash-lite
+    model_env: GEMINI_MODEL
+    api_key_env: GEMINI_AK
+    base_url_env: null
+    max_tokens: 16384
+    max_retries: 5
+  actor_steps_per_episode: 5
+  max_episodes: 3
+  max_judge_steps: 15
+  judge_pause: 0.3
+  enable_code_inspection: true
+  code_timeout: 60
+  enable_trajectory_check: true
+  trajectory_max_images: 12
 agent:
   name: gta15
   history_n: 8
   coordinate_type: relative
   platform: ubuntu
   internal_retries: 3
-  grounding_model: null
-  grounding_max_tokens: 512
   dump_messages: false
 env:
   name: osworld

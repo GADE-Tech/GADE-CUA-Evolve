@@ -50,7 +50,7 @@ class OpenAICompatClient(Client):
     ) -> LLMResponse:
         request: dict[str, Any] = {
             "model": overrides.pop("model", self.model),
-            "messages": list(messages),
+            "messages": self._to_messages(messages),
             "temperature": overrides.pop("temperature", self.temperature),
             "top_p": overrides.pop("top_p", self.top_p),
             "max_tokens": overrides.pop("max_tokens", self.max_tokens),
@@ -103,3 +103,39 @@ class OpenAICompatClient(Client):
             usage=response.usage.model_dump() if response.usage else {},
             raw=response,
         )
+
+    @staticmethod
+    def _to_messages(messages: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        """Translate provider-neutral tool history to Chat Completions wire shapes."""
+        translated: list[dict[str, Any]] = []
+        for source in messages:
+            role = str(source.get("role", "user"))
+            message: dict[str, Any] = {"role": role}
+            content = source.get("content", "")
+            if role == "tool":
+                message["tool_call_id"] = str(source.get("tool_call_id", ""))
+                message["content"] = content if isinstance(content, str) else json.dumps(content)
+            else:
+                message["content"] = content
+            calls = source.get("tool_calls", []) or []
+            if calls:
+                message["tool_calls"] = []
+                for call in calls:
+                    function = call.get("function") if isinstance(call, Mapping) else None
+                    if isinstance(function, Mapping):
+                        name = function.get("name", "")
+                        arguments = function.get("arguments", "{}")
+                    else:
+                        name = call.get("name", "")
+                        arguments = call.get("arguments", {})
+                    if not isinstance(arguments, str):
+                        arguments = json.dumps(arguments)
+                    message["tool_calls"].append(
+                        {
+                            "id": str(call.get("id", "")),
+                            "type": "function",
+                            "function": {"name": str(name), "arguments": arguments},
+                        }
+                    )
+            translated.append(message)
+        return translated

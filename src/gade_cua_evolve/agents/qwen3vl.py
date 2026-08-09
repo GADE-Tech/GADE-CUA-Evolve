@@ -36,7 +36,7 @@ class Qwen3VLAgent(Agent):
                 ],
             }
         ]
-        task_prompt = instruction_prompt(instruction, self.state.actions)
+        task_prompt = instruction_prompt(instruction, self.state.actions, self.state.feedbacks)
         history = self.state.history_window(self.config.history_n)
         for index, (image, response) in enumerate(history):
             content: list[dict] = [

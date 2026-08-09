@@ -12,8 +12,9 @@ from gade_cua_evolve.envs import Observation, StepOutcome
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
 
 from .base import Agent, AgentStep
+from .grounding import Grounder
 from .gta15_prompts import CUA_SYSTEM_PROMPT, DEFAULT_REPLY, START_MESSAGE
-from .gta15_tools import CUA_TOOLS, GeminiGrounder, GTA15ActionRenderer
+from .gta15_tools import CUA_TOOLS, GTA15ActionRenderer
 
 
 def _image_part(screenshot: bytes) -> dict[str, Any]:
@@ -39,31 +40,34 @@ class GTA15Agent(Agent):
     """Own the GTA1.5 conversation, grounding, and tool rendering."""
 
     def __init__(
-        self, llm: Client, config: AgentConfig, client_password: str = ""
+        self,
+        llm: Client,
+        config: AgentConfig,
+        grounder: Grounder,
+        client_password: str = "",
     ) -> None:
         super().__init__(llm, config)
-        self.grounder = GeminiGrounder(
-            llm,
-            model=config.grounding_model,
-            max_tokens=config.grounding_max_tokens,
-        )
+        self.grounder = grounder
         self.renderer = GTA15ActionRenderer(self.grounder, platform=config.platform)
         self.client_password = client_password
         self._instruction: str | None = None
         self._pending_call: ToolCall | None = None
         self._pending_output: str | None = None
+        self._feedback_cursor = 0
 
     def reset(self, logger=None) -> None:
         super().reset(logger)
         self._instruction = None
         self._pending_call = None
         self._pending_output = None
+        self._feedback_cursor = 0
 
     def predict(self, instruction: str, obs: Observation) -> AgentStep:
         if not obs.screenshot:
             raise ValueError("GTA15Agent requires a screenshot observation")
         self._ensure_task(instruction, obs.screenshot)
         self._append_action_result(obs.screenshot)
+        self._append_feedback()
 
         response: LLMResponse | None = None
         for retry in range(self.config.internal_retries):
@@ -129,6 +133,22 @@ class GTA15Agent(Agent):
         if action == "WAIT" and "Error:" not in result:
             result += " The environment waited without a GUI action."
         self._pending_output = result
+
+    def on_feedback(self, feedback: str) -> None:
+        super().on_feedback(feedback)
+
+    def _append_feedback(self) -> None:
+        for feedback in self.state.feedbacks[self._feedback_cursor :]:
+            self.state.messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "Feedback from a human or verifier. Treat it as evidence, verify it "
+                        f"against the current screenshot, and fix actionable issues:\n{feedback.strip()}"
+                    ),
+                }
+            )
+        self._feedback_cursor = len(self.state.feedbacks)
 
     def _ensure_task(self, instruction: str, screenshot: bytes) -> None:
         if self._instruction is None:
