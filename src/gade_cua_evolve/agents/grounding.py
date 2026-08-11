@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw
 
 from gade_cua_evolve.config import GrounderConfig
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
+from gade_cua_evolve.llm.base import serialize_tool_calls
 
 GROUNDING_SYSTEM_PROMPT = """# Role
 You are a precise GUI grounding model. Locate one GUI element in a desktop screenshot.
@@ -75,10 +76,7 @@ def _assistant_message(response: LLMResponse) -> dict[str, Any]:
     return {
         "role": "assistant",
         "content": response.text,
-        "tool_calls": [
-            {"id": call.id, "name": call.name, "arguments": dict(call.arguments)}
-            for call in response.tool_calls
-        ],
+        "tool_calls": serialize_tool_calls(response),
     }
 
 

@@ -16,6 +16,7 @@ class ReActLoop(AgentLoop):
         action_steps = 0
         score: float | None = None
         recording = False
+        status = "running"
         try:
             observation = self.env.reset(task)
             if self.recorder:
@@ -63,6 +64,10 @@ class ReActLoop(AgentLoop):
                 if not task.has_native_evaluator:
                     raise ValueError("Native evaluation requires a task with an OSWorld evaluator")
                 score = self.env.evaluate()
+            status = "cancelled" if self.controller.cancelled else "finished"
+        except Exception:
+            status = "error"
+            raise
         finally:
             try:
                 if recording:
@@ -78,7 +83,7 @@ class ReActLoop(AgentLoop):
                             score=score,
                             done=done,
                             predict_steps=predict_steps,
-                            status="cancelled" if self.controller.cancelled else "finished",
+                            status=status,
                         )
         return RunResult(
             task=task,
@@ -87,5 +92,5 @@ class ReActLoop(AgentLoop):
             predict_steps=predict_steps,
             action_steps=action_steps,
             output_dir=str(self.recorder.directory) if self.recorder else None,
-            status="cancelled" if self.controller.cancelled else "finished",
+            status=status,
         )

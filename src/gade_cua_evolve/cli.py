@@ -43,13 +43,23 @@ def run_task(
     if evaluate and not task.has_native_evaluator:
         raise typer.BadParameter("--evaluate requires an OSWorld task with a native evaluator")
     recorder = TrajectoryRecorder(config.loop.output_dir, task, config)
-    _, _, loop = build_components(
-        config,
-        recorder,
-        controller=controller,
-        arm_enabled=arm_enabled,
-        evaluate_at_end=evaluate,
-    )
+    try:
+        _, _, loop = build_components(
+            config,
+            recorder,
+            controller=controller,
+            arm_enabled=arm_enabled,
+            evaluate_at_end=evaluate,
+        )
+    except Exception:
+        recorder.finish(
+            score=None,
+            done=False,
+            predict_steps=0,
+            status="error",
+            episodes=0,
+        )
+        raise
     return loop.run(task)
 
 

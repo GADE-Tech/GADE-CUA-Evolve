@@ -110,7 +110,34 @@ def test_full_arm_tools_and_evaluator_ground_truth_privacy(tmp_path) -> None:
     all_messages = repr([messages for messages, _ in client.calls])
     assert "secret_ground_truth" not in all_messages
     assert "NEVER_SHOW" not in all_messages
+    judge_prompt = client.calls[1][0][0]["content"]
+    assert "task-specific content and transformation" in judge_prompt
+    assert "verify evidence for each method" in judge_prompt
     assert env.evaluate_calls == 0
+
+
+def test_arm_rejects_manual_method_claim_without_gui_evidence(tmp_path) -> None:
+    client = FakeClient(
+        [tool("terminate", status="success", rationale="The output file exists.")]
+    )
+    env = InspectableNoop()
+    task = TaskSpec(id="manual", instruction="Manually edit the image in GIMP.")
+    observation = env.reset(task)
+    reward = AgenticRewardModel(client, FakeGrounder(), arm_config())
+
+    result = reward.verify(
+        task=task.public_view(),
+        plan=VerificationPlan("manual image edit", ["The image was manually edited."]),
+        initial=observation,
+        current=observation,
+        trajectory=[TrajectoryItem(1, "WAIT", "delegated to code", observation.screenshot)],
+        env=env,
+        directory=tmp_path / "arm" / "episode_01",
+    )
+
+    assert result.verdict == "failed"
+    assert "no executed GUI action" in result.rationale
+    assert result.evidence[-1]["tool"] == "method_evidence_guard"
 
 
 class TerminalAgent(Agent):

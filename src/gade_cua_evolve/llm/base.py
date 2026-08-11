@@ -15,6 +15,7 @@ class ToolCall:
     id: str
     name: str
     arguments: Mapping[str, Any] = field(default_factory=dict)
+    thought_signature: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,22 @@ class LLMResponse:
     tool_calls: Sequence[ToolCall] = field(default_factory=tuple)
     usage: Mapping[str, Any] = field(default_factory=dict)
     raw: Any = None
+
+
+def serialize_tool_calls(response: LLMResponse) -> list[dict[str, Any]]:
+    """Serialize tool calls for a provider-neutral assistant history turn."""
+
+    serialized: list[dict[str, Any]] = []
+    for call in response.tool_calls:
+        value: dict[str, Any] = {
+            "id": call.id,
+            "name": call.name,
+            "arguments": dict(call.arguments),
+        }
+        if call.thought_signature:
+            value["thought_signature"] = call.thought_signature
+        serialized.append(value)
+    return serialized
 
 
 class Client(ABC):

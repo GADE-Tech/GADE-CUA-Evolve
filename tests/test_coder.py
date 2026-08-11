@@ -55,6 +55,8 @@ def test_coder_runs_python_and_bash_then_finishes() -> None:
     assert all(item[2] == 7 for item in executions)
     assert "Proof: one and two" in result.summary
     assert client.calls[1][0][-1]["role"] == "tool"
+    assert "Never use code to impersonate" in client.calls[0][0][0]["content"]
+    assert "task-specific content and transformation" in client.calls[0][0][0]["content"]
 
 
 def test_invalid_and_failed_calls_are_returned_for_retry() -> None:
