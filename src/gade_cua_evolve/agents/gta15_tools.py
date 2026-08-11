@@ -153,6 +153,31 @@ CUA_TOOLS = [
     ),
 ]
 
+CODE_AGENT_TOOL = _function(
+    "call_code_agent",
+    (
+        "Delegate one narrow backend subtask to a coding agent that can run Python or Bash "
+        "inside the disposable Ubuntu VM. Use it for deterministic file inspection or editing, "
+        "calculations, data processing, scripting, or structured transformations. Do not use it "
+        "for visual-only, navigation-heavy, layout-sensitive, or screenshot-dependent work. The "
+        "coder is a helper and its report must be independently verified from the desktop or file."
+    ),
+    {
+        "task": {
+            "type": "string",
+            "description": (
+                "A short, concrete backend objective stating the desired outcome, exact files or "
+                "objects, and essential constraints. Describe what to achieve, not exact commands."
+            ),
+        },
+        "rationale": {
+            "type": "string",
+            "description": "Why backend code is a better fit than the next direct GUI action.",
+        },
+    },
+    ["task", "rationale"],
+)
+
 
 SET_CELL_VALUES_CODE = """import uno
 import subprocess

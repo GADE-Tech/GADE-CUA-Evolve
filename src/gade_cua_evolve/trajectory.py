@@ -83,6 +83,9 @@ class TrajectoryRecorder:
         arm_feedback: list[str] | None = None,
         episodes: int = 1,
     ) -> None:
+        public_config = self.config.model_dump(mode="json") if self.config else None
+        if public_config and public_config.get("env", {}).get("client_password"):
+            public_config["env"]["client_password"] = "<redacted>"
         result = {
             "task": self.task.model_dump(mode="json"),
             "score": score,
@@ -93,6 +96,6 @@ class TrajectoryRecorder:
             "arm_verdict": arm_verdict,
             "arm_feedback": arm_feedback or [],
             "episodes": episodes,
-            "config": self.config.model_dump(mode="json") if self.config else None,
+            "config": public_config,
         }
         (self.directory / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

@@ -35,6 +35,17 @@ class InspectionResult:
     returncode: int | None = None
 
 
+@dataclass(slots=True)
+class CodeExecutionResult:
+    """Result of mutable code execution inside an isolated environment."""
+
+    language: str
+    status: str
+    output: str = ""
+    error: str = ""
+    returncode: int | None = None
+
+
 class EnvAdapter(ABC):
     """Normalize an external desktop runtime for agent loops."""
 
@@ -58,6 +69,10 @@ class EnvAdapter(ABC):
         self, language: str, code: str, timeout: int = 60
     ) -> InspectionResult:
         raise NotImplementedError(f"{type(self).__name__} does not support VM code inspection")
+
+    def run_code(self, language: str, code: str, timeout: int = 30) -> CodeExecutionResult:
+        """Run mutable code inside the isolated environment, never on the host."""
+        raise NotImplementedError(f"{type(self).__name__} does not support VM code execution")
 
     def close(self) -> None:
         pass

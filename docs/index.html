@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="GADE CUA Evolve is a self-evolving computer-use agent system built around a Planner, Grounder, and Agentic Reward Model.">
+  <meta name="description" content="GADE CUA Evolve is a self-evolving computer-use agent system and horizontally scalable OSWorld rollout infrastructure built around a Planner, Grounder, Coder, and Agentic Reward Model.">
   <meta name="author" content="Author One, Author Two, Author Three, Author Four">
   <meta property="og:type" content="website">
   <meta property="og:title" content="GADE CUA Evolve — A self-evolving computer-use agent system">
-  <meta property="og:description" content="Planner acts, Grounder locates, and ARM turns desktop evidence into stop-or-retry feedback.">
+  <meta property="og:description" content="Planner, Grounder, Coder, and ARM run verified desktop rollouts on scalable disposable OSWorld workers.">
   <meta property="og:url" content="https://gade-tech.github.io/GADE-CUA-Evolve/">
   <meta property="og:image" content="https://gade-tech.github.io/GADE-CUA-Evolve/assets/hero/gimp.webp">
   <meta name="twitter:card" content="summary_large_image">
@@ -31,6 +31,7 @@
     <div class="nav-links">
       <a href="#idea">Idea</a>
       <a href="#results">Results</a>
+      <a href="#infra">Infra</a>
       <a href="#trajectory">Trajectory</a>
       <a class="nav-github" href="https://github.com/GADE-Tech/GADE-CUA-Evolve">GitHub ↗</a>
     </div>
@@ -45,11 +46,12 @@
           <div class="eyebrow-chip"><span></span> Self-evolve · GUI + Coding</div>
           <h1>A self-evolving<br><em>computer-use agent</em><br>system.</h1>
           <p class="hero-authors" aria-label="Authors: Author One, Author Two, Author Three, Author Four"><span>Authors</span><b>Author One</b><i>·</i><b>Author Two</b><i>·</i><b>Author Three</b><i>·</i><b>Author Four</b></p>
-          <p class="hero-lede">Planner decides the next thought, GUI action, or code. Grounder turns visual intent into precise interaction. ARM verifies the resulting desktop state and sends evidence-backed feedback into the next episode.</p>
-          <div class="agent-roles" aria-label="Planner, Grounder, and ARM system roles">
+          <p class="hero-lede">Planner decides the next thought, GUI action, or delegated code task. Grounder turns visual intent into precise interaction. Coder executes bounded work inside the disposable guest. ARM verifies the resulting desktop state and sends evidence-backed feedback into the next episode.</p>
+          <div class="agent-roles" aria-label="Planner, Grounder, Coder, and ARM system roles">
             <article><span>01</span><strong>Planner</strong><small>Reasons and chooses actions</small></article>
             <article><span>02</span><strong>Grounder</strong><small>Locates and confirms targets</small></article>
-            <article><span>03</span><strong>ARM</strong><small>Verifies, stops, or retries</small></article>
+            <article><span>03</span><strong>Coder</strong><small>Executes inside the guest VM</small></article>
+            <article><span>04</span><strong>ARM</strong><small>Verifies, stops, or retries</small></article>
           </div>
           <div class="hero-actions">
             <a class="button button-primary" href="https://github.com/GADE-Tech/GADE-CUA-Evolve">Explore on GitHub <span aria-hidden="true">↗</span></a>
@@ -153,10 +155,57 @@
       </div>
     </section>
 
+    <section class="infra section" id="infra">
+      <div class="section-inner">
+        <div class="section-heading infra-heading reveal">
+          <div class="section-tag"><span>03</span> Scalable rollout infrastructure</div>
+          <h2>One control plane.<br><em>Disposable workers at scale.</em></h2>
+          <p>GADE CUA Evolve separates orchestration, model inference, and desktop execution. Batch shards can scale horizontally across runner hosts while each OSWorld task receives an isolated Ubuntu VM, trajectory recorder, and guaranteed cleanup path.</p>
+        </div>
+
+        <div class="infra-layout reveal">
+          <div class="infra-topology" role="img" aria-label="Private VPC architecture with GADE runners, a shared Squid egress gateway, model endpoint, object storage, and disposable OSWorld workers without public IP addresses">
+            <div class="infra-external">
+              <div class="infra-node node-control"><span>CONTROL PLANE</span><strong>Scheduler + GADE runners</strong><small>shards · retries · cleanup</small></div>
+              <div class="infra-node node-model"><span>INFERENCE</span><strong>Model endpoint</strong><small>Planner · Grounder · Coder · ARM</small></div>
+            </div>
+            <div class="infra-link link-down"><span>private control</span></div>
+            <div class="vpc-frame">
+              <div class="vpc-label"><span>VOLCENGINE VPC</span><small>private subnets · security-group isolation</small></div>
+              <div class="gateway-row">
+                <div class="infra-node node-proxy"><span>SHARED EGRESS</span><strong>Squid gateway</strong><small>allowlisted HTTP(S) · one controlled public path</small></div>
+                <div class="infra-node node-store"><span>ARTIFACTS</span><strong>TOS / results</strong><small>screenshots · JSONL · training trajectories</small></div>
+              </div>
+              <div class="worker-bus"><span>TCP 5000 + 9222 from runner SG only</span></div>
+              <div class="worker-grid">
+                <div class="infra-node worker"><span>WORKER 01</span><strong>OSWorld VM</strong><small>no EIP · disposable</small></div>
+                <div class="infra-node worker"><span>WORKER 02</span><strong>OSWorld VM</strong><small>no EIP · disposable</small></div>
+                <div class="infra-node worker worker-more"><span>WORKER N</span><strong>Horizontal scale</strong><small>one isolated task per VM</small></div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="infra-copy">
+            <span class="micro-label">TRAINING / ROLLOUT MODE</span>
+            <h3>Remove per-worker EIPs; centralize controlled egress.</h3>
+            <p>For high-volume trajectory collection, place runners and workers in the same VPC, address workers over private IPs, and send required HTTP(S) egress through a hardened Squid gateway. This reduces public-IP pressure while preserving disposable task isolation.</p>
+            <ul>
+              <li>Scale with deterministic batch shards and external scheduling.</li>
+              <li>Allow only runner security groups onto guest ports 5000 and 9222.</li>
+              <li>Restrict Squid by source, destination, port, logging, and rate limits.</li>
+              <li>Write trajectories to durable storage before deleting every worker.</li>
+            </ul>
+            <p class="infra-caveat"><strong>Deployment pattern, not a current one-line switch.</strong> The pinned OSWorld dependency is unmodified; operators must configure private-address lifecycle and proxy policy in their infrastructure layer.</p>
+            <a class="button button-primary" href="https://github.com/GADE-Tech/GADE-CUA-Evolve/blob/main/docs/volcengine-osworld-v1.md#7-scaling-for-training-and-rollout-collection">Open the Volcengine infra guide <span aria-hidden="true">↗</span></a>
+          </aside>
+        </div>
+      </div>
+    </section>
+
     <section class="trajectory section" id="trajectory">
       <div class="section-inner">
         <div class="section-heading reveal">
-          <div class="section-tag"><span>03</span> GUI Trajectory Lab</div>
+          <div class="section-tag"><span>04</span> GUI Trajectory Lab</div>
           <h2>Watch the agent act—and <em>ARM decide.</em></h2>
           <p>Two real improvement cases from the attached runs: Ubuntu cases are labeled OSWorld; Windows cases are labeled Windows Agent Arena. In both, ARM catches a plausible-looking failure and changes the next episode.</p>
         </div>
@@ -196,7 +245,7 @@
 
   <footer>
     <div class="footer-inner">
-      <div class="footer-meta"><a href="https://github.com/GADE-Tech/GADE-CUA-Evolve">Project repository ↗</a><a href="https://github.com/xlang-ai/OSWorld">OSWorld ↗</a><a href="https://github.com/microsoft/WindowsAgentArena">Windows Agent Arena ↗</a></div>
+      <div class="footer-meta"><a href="https://github.com/GADE-Tech/GADE-CUA-Evolve">Project repository ↗</a><a href="https://github.com/GADE-Tech/GADE-CUA-Evolve/blob/main/docs/volcengine-osworld-v1.md">Volcengine infra guide ↗</a><a href="https://github.com/xlang-ai/OSWorld">OSWorld ↗</a><a href="https://github.com/microsoft/WindowsAgentArena">Windows Agent Arena ↗</a></div>
     </div>
   </footer>
 

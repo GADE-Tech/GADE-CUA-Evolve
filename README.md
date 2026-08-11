@@ -1,76 +1,140 @@
+<div align="center">
+
 # GADE CUA Evolve
 
-A composable runtime for computer-use agents.
+### A Self-Evolving Multi-Agent System for Computer Use
 
-## Architecture
+**Planner reasons · Grounder locates · Coder executes · ARM verifies and evolves**
 
-The package has six independent layers:
+[![Project Website](https://img.shields.io/badge/Project-Website-557fa3?style=for-the-badge)](https://gade-tech.github.io/GADE-CUA-Evolve/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![OSWorld 1.0](https://img.shields.io/badge/Benchmark-OSWorld%201.0-77779b?style=for-the-badge)](https://github.com/GADE-Tech/OSWorld)
 
-1. `AgentLoop`: schedules one or more agents and owns the task lifecycle.
-2. `Agent`: owns prompts, the internal conversation loop, and action generation.
-3. `Client`: hides OpenAI-compatible and Google GenAI SDK differences.
-4. `EnvAdapter`: normalizes environments; OSWorld and a safe no-op adapter are included.
-5. `Grounder`: resolves visual descriptions through a provider-neutral locate/confirm protocol.
-6. `AgenticRewardModel`: plans end-state checks and verifies actor episodes without evaluator GT.
+**79.6% OSWorld 1.0 success rate** with Gemini 3.1 Pro Self-Evolve, up from a 76.0% baseline.<br>
+**GUI + Coding reaches 76.0%**, compared with 72.5% for GUI-only execution.
 
-`GTA15Agent` ports the tool protocol and closed-loop behavior from OSWorld's
-`mm_agents/gta1/gta15_agent.py`. Actor, grounder, and ARM models are independently
-configured and may use Google GenAI or an OpenAI-compatible endpoint. Grounding
-uses normalized 1000x1000 coordinates and verifies each point against a red-circle
-crop. Each valid actor decision still makes one planning request.
+<sub>Project Q2 experiment summary (2026). These are project experiment results, not claims about a live official leaderboard.</sub>
 
-## Install
+</div>
+
+GADE CUA Evolve is a composable runtime for agents that act on a real desktop, inspect the
+result, and improve through evidence-backed feedback. The supported production profile runs
+**OSWorld v1 on disposable Volcengine Ubuntu VMs**; model-generated GUI actions and code never
+execute on the host machine.
+
+## System at a glance
+
+| Agent | Responsibility |
+| --- | --- |
+| **Planner** | Reasons from the task, screenshot, action history, and verifier feedback; selects one next tool. |
+| **Grounder** | Resolves visual descriptions onto a normalized coordinate plane and confirms target locations. |
+| **Coder** | Handles bounded Python/Bash subtasks inside the disposable VM and returns execution evidence. |
+| **ARM** | Plans end-state checks, inspects the live GUI and persisted artifacts, then stops or feeds a concrete fix into the next episode. |
+
+```mermaid
+flowchart LR
+    CLI["CLI / TUI"] --> CONFIG["RunConfig"]
+    CONFIG --> LOOP["AgentLoop"]
+    LOOP --> PLANNER["Planner"]
+    PLANNER --> GROUND["Grounder"]
+    PLANNER --> CODER["Coder"]
+    GROUND --> ENV["OSWorld EnvAdapter"]
+    CODER --> ENV
+    PLANNER --> ENV
+    ENV --> EVIDENCE["Screenshot + files + trajectory"]
+    EVIDENCE --> ARM["Agentic Reward Model"]
+    ARM -->|feedback| PLANNER
+    ARM -->|verified| DONE["Stop"]
+```
+
+The runtime keeps five boundaries explicit:
+
+1. `AgentLoop` owns scheduling, episodes, recording, evaluation, and cleanup.
+2. `Agent` owns prompts, task-local history, and normalized decisions.
+3. `Client` hides Google GenAI and OpenAI-compatible SDK differences.
+4. `EnvAdapter` is the only path to the isolated desktop and VM code execution.
+5. `TrajectoryRecorder` writes screenshots, JSONL events, results, and optional video.
+
+## Installation
+
+Python 3.12 is recommended for the pinned OSWorld checkout.
 
 ```bash
-pip install -e ".[google,dev]"
+git clone https://github.com/GADE-Tech/OSWorld.git
+git -C OSWorld checkout b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf
+
+git clone https://github.com/GADE-Tech/GADE-CUA-Evolve.git
+cd GADE-CUA-Evolve
+uv sync --extra google --extra dev
+uv pip install -e ../OSWorld
+export OSWORLD_ROOT="$(cd ../OSWorld && pwd)"
 cp .env.example .env
 ```
 
-Install OSWorld separately so the core package stays light:
+[`GADE-Tech/OSWorld`](https://github.com/GADE-Tech/OSWorld) is pinned for reproducibility. At
+the commit above it contains no GADE-specific source changes; it is an unmodified upstream
+OSWorld commit. OSWorld stays a separate editable dependency so this package remains focused on
+the agent runtime.
+
+For a reproducible Volcengine guest image, network rules, Coder dependencies, sanitization,
+smoke tests, and the no-EIP + Squid scaling topology for training rollouts, follow the
+**[Volcengine OSWorld v1 Image Guide](docs/volcengine-osworld-v1.md)**.
+
+## Quickstart
+
+Run a benchmark task by domain and task ID:
 
 ```bash
-pip install -e "/Users/bofeizhang/Documents/GADE Projects/OSWorld"
+gadecua --env osworldv1 \
+  --task chrome/2ae9ba84-3a0d-4d4c-8338-3a1478dc5fe3
 ```
 
-The current OSWorld checkout requires Python 3.12 or newer. Python 3.12 is the
-recommended Volcengine runtime for this repository.
-
-## CLI
+Useful variants:
 
 ```bash
-gadecua
-gadecua --arm
-gadecua --task chrome/TASK_ID --arm
+gadecua --env osworldv1 --task chrome/TASK_ID --verbose
+gadecua --env osworldv1 --task chrome/TASK_ID --arm --evaluate
+gadecua --env osworldv1 --task chrome/TASK_ID --set loop.max_steps=20
+
 gadecua exec "Open Chrome and visit example.com"
 gadecua exec "Open Chrome and visit example.com" --arm
-gadecua exec --env osworldv1 --task chrome/TASK_ID --arm --evaluate
-gade-cua config show --config configs/default.yaml
+
+gade-cua config show --config configs/volcengine_gta15_gemini.yaml
+gade-cua env probe --config configs/volcengine_gta15_gemini.yaml \
+  --check-code --check-services
 gade-cua list agents
-gade-cua env probe --config configs/osworld_qwen3vl.yaml
-gade-cua run --config configs/volcengine_gta15_gemini.yaml \
-  --instruction "Open Firefox and visit example.com"
-gade-cua run --config configs/openrouter_qwen35.yaml --instruction "..."
-gade-cua run --config configs/osworld_qwen3vl.yaml \
-  --instruction "Open Firefox and visit example.com"
+gade-cua list envs
 ```
 
-With no subcommand, `gadecua` starts the Textual interface. Normal messages steer
-the agent before its next decision; `/pause`, `/resume`, and `/stop` control the
-session. The agent pauses for human confirmation when it believes the task is
-complete. `--arm` adds automatic reward-agent feedback but does not prevent human
-intervention.
+With no subcommand, `gadecua` opens the Textual interface. Normal messages steer the Planner
+before its next decision; `/pause`, `/resume`, and `/stop` control the session. The runtime asks
+for human confirmation when it believes a task is complete. `--arm` adds automatic reward-agent
+feedback without removing human control.
 
-`--evaluate` is separate from ARM and is accepted only for an OSWorld task JSON
-that contains a native evaluator. The native score is computed once at the end
-and is never sent to the actor or reward model. Free-form prompts have no native
-score.
+`--evaluate` is separate from ARM. It is accepted only for OSWorld task JSON containing a native
+evaluator, is computed once at the end, and is never exposed to the Planner, Coder, or ARM.
 
-### Batch OSWorld runs
+## Self-evolution and GUI + Coding
 
-`gadecua batch` reads the standard OSWorld domain-to-task manifest and runs each
-task in an isolated child process. `test_nogdrive.json` is the default manifest
-(361 tasks); `test_all.json` contains 369 tasks including eight tasks that need
-Google Drive state.
+The default `osworldv1` profile composes independent Planner, Grounder, Coder, and ARM model
+sections. They currently use the same Gemini environment variables, but each client can be
+changed independently through YAML.
+
+The Planner may call `call_code_agent` for one clear backend subtask. The Coder then performs a
+bounded tool loop using `run_python`, `run_bash`, or `finish`. Every command is executed through
+`EnvAdapter` inside the disposable VM; failures and truncated, redacted evidence return to the
+Coder, and the final report returns to the Planner. The Planner must inspect the refreshed
+desktop or files before treating the delegated work as complete.
+
+ARM works at the episode boundary. It checks the requested end state against the current GUI,
+the trajectory, and optional read-only VM inspection. A failed check becomes input to the next
+Planner episode; success or infeasibility stops the loop.
+
+## Batch OSWorld runs
+
+`gadecua batch` reads a standard OSWorld domain-to-task manifest and runs every task in an
+isolated child process. `test_nogdrive.json` contains 361 tasks; `test_all.json` adds eight tasks
+that require Google Drive state.
 
 Start with a small smoke run:
 
@@ -84,54 +148,63 @@ Run the no-Google-Drive suite with bounded concurrency:
 
 ```bash
 gadecua batch \
-  --manifest "/path/to/OSWorld/evaluation_examples/test_nogdrive.json" \
+  --manifest "$OSWORLD_ROOT/evaluation_examples/test_nogdrive.json" \
   --env osworldv1 --workers 2 --evaluate --resume \
   --output-dir results/batch/nogdrive-baseline
 ```
 
-Add `--arm` for the feedback loop. Use `--shard-index N --num-shards M` to split
-the deterministic task order across machines, and `--infra-retries` to retry
-only child-process/infrastructure failures. A valid zero native score is never
-retried. `--resume` skips tasks with a valid prior `result.json`, except when the
-latest recorded attempt ended in an infrastructure failure.
+Add `--arm` for self-evolving episodes. Use `--shard-index N --num-shards M` to split the
+deterministic task order and `--infra-retries` to retry infrastructure failures only. A valid
+native score of zero is never retried. Each worker owns one disposable VM, so keep concurrency
+within ECS, EIP, model API, and budget quotas.
 
-Batch output contains per-domain task trajectories plus `attempts.jsonl`,
-`batch_config.json`, per-attempt logs, and `summary.json`. Each worker owns one
-disposable VM, so `--workers` must stay within ECS, EIP, and model API quotas.
+Batch output includes per-task trajectories, `attempts.jsonl`, `batch_config.json`, logs, and
+`summary.json`. Individual runs write `initial_screenshot.png`, action screenshots, `traj.jsonl`,
+`result.json`, ARM evidence, and optional `recording.mp4` under `results/`.
+
+## Configuration
+
+YAML contains non-sensitive values only. Model API keys, cloud credentials, and the VM password
+belong in `.env` or the process environment. The default Volcengine profile allocates an ECS
+instance from `VOLCENGINE_IMAGE_ID` and deletes it during cleanup; set `env.path_to_vm` only when
+intentionally targeting an existing instance.
 
 Override any non-secret setting with dotted keys:
 
 ```bash
-gade-cua run --config configs/default.yaml --instruction "..." \
-  --set loop.max_steps=5 --set agent.coordinate_type=absolute
+gade-cua run --config configs/volcengine_gta15_gemini.yaml \
+  --instruction "Open Firefox and visit example.com" \
+  --set loop.max_steps=5 \
+  --set coder.max_rounds=10
 ```
 
-YAML contains only non-sensitive settings. API keys and cloud credentials belong
-in `.env`. Runs write `result.json`, `traj.jsonl`, and screenshots under `results/`.
-
-For GTA15, set `GEMINI_AK` and optionally override `GEMINI_MODEL` in `.env`.
-The production profile contains separate `llm`, `grounder`, and `arm.llm`
-sections. Set a section's provider to `openai` plus its `base_url`/environment
-variable names to use an OpenAI-compatible service.
-For Volcengine, the local OSWorld checkout accepts either `VOLCENGINE_*` or its
-legacy `VOLCANO_ENGINE_*` credential names. The
-`configs/volcengine_gta15_gemini.yaml` allocates a disposable ECS instance for each
-run and deletes it during environment cleanup. Set `env.path_to_vm` only when a run
-must target an existing instance.
+The CLI resolves OSWorld in this order: `--osworld-root`, `OSWORLD_ROOT`, then a sibling
+`../OSWorld` checkout. Missing dependencies produce an installation hint rather than falling back
+to a machine-specific path.
 
 ## Extending
 
-- Implement `EnvAdapter` and register it in `registry.py` to add an environment.
-- Implement `Agent.predict` to add an agent.
-- Override `AgentLoop.select_agent` for round-robin or router scheduling.
+- Add an environment by implementing `EnvAdapter`; keep provider imports lazy and cleanup safe
+  after partial initialization.
+- Add a UI actor by implementing `Agent.predict()` and returning only normalized `AgentStep`
+  values.
+- Add a model provider behind `Client.complete()` and keep its SDK in an optional dependency.
+- Add a scheduler by subclassing `AgentLoop`; environment lifecycle stays at the loop boundary.
 
 ## Safety
 
-Model-generated actions are untrusted. Execute them only in an isolated,
-disposable environment such as an OSWorld VM. Host-side action execution is
-intentionally unsupported.
+Model-generated actions and Coder programs are untrusted. Run them only in an isolated,
+disposable OSWorld VM. Host-side action or code execution is intentionally unsupported.
 
-ARM's optional `inspect_with_code` executes model-generated Python or Bash
-directly inside the disposable VM. The verifier prompt requires read-only code,
-and execution is timed out and audited, but there is deliberately no static
-deny-list. Do not enable it against a personal or persistent machine.
+Coder execution may modify files and run arbitrary Python or Bash inside the guest. ARM's
+`inspect_with_code` remains a separate read-only verification tool. Neither capability should
+be enabled against a personal machine, a persistent desktop, or an image containing real
+credentials. After interrupted cloud runs, always verify that temporary instances and EIPs were
+deleted.
+
+## Project links
+
+- [Interactive project website and experiment details](https://gade-tech.github.io/GADE-CUA-Evolve/)
+- [Scalable rollout infrastructure overview](https://gade-tech.github.io/GADE-CUA-Evolve/#infra)
+- [Pinned GADE-Tech OSWorld fork](https://github.com/GADE-Tech/OSWorld)
+- [OSWorld benchmark](https://github.com/xlang-ai/OSWorld)
