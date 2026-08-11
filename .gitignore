@@ -25,6 +25,9 @@ dist/
 # Trajectory and log output
 trajectories/
 trajectory/
+# Curated, privacy-filtered WebP assets used by the public research site.
+!docs/assets/trajectories/
+!docs/assets/trajectories/**
 logs/
 log/
 *.log
