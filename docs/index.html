@@ -165,6 +165,7 @@
 
         <div class="infra-layout reveal">
           <div class="infra-topology" role="img" aria-label="Private VPC architecture with GADE runners, a shared Squid egress gateway, model endpoint, object storage, and disposable OSWorld workers without public IP addresses">
+            <div class="infra-map-head"><span>PRIVATE ROLLOUT TOPOLOGY</span><small>one control plane · N isolated workers · centralized egress</small></div>
             <div class="infra-external">
               <div class="infra-node node-control"><span>CONTROL PLANE</span><strong>Scheduler + GADE runners</strong><small>shards · retries · cleanup</small></div>
               <div class="infra-node node-model"><span>INFERENCE</span><strong>Model endpoint</strong><small>Planner · Grounder · Coder · ARM</small></div>
@@ -185,19 +186,28 @@
             </div>
           </div>
 
-          <aside class="infra-copy">
-            <span class="micro-label">TRAINING / ROLLOUT MODE</span>
-            <h3>Remove per-worker EIPs; centralize controlled egress.</h3>
-            <p>For high-volume trajectory collection, place runners and workers in the same VPC, address workers over private IPs, and send required HTTP(S) egress through a hardened Squid gateway. This reduces public-IP pressure while preserving disposable task isolation.</p>
-            <ul>
-              <li>Scale with deterministic batch shards and external scheduling.</li>
-              <li>Allow only runner security groups onto guest ports 5000 and 9222.</li>
-              <li>Restrict Squid by source, destination, port, logging, and rate limits.</li>
-              <li>Write trajectories to durable storage before deleting every worker.</li>
-            </ul>
-            <p class="infra-caveat"><strong>Deployment pattern, not a current one-line switch.</strong> The pinned OSWorld dependency is unmodified; operators must configure private-address lifecycle and proxy policy in their infrastructure layer.</p>
-            <a class="button button-primary" href="https://github.com/GADE-Tech/GADE-CUA-Evolve/blob/main/docs/volcengine-osworld-v1.md#7-scaling-for-training-and-rollout-collection">Open the Volcengine infra guide <span aria-hidden="true">↗</span></a>
-          </aside>
+          <div class="infra-feature-grid">
+            <article class="infra-feature feature-egress">
+              <span class="infra-feature-index">01 · PRIVATE EGRESS</span>
+              <h3>One controlled exit,<br>not one EIP per worker.</h3>
+              <p>Workers stay on private addresses. Required HTTP(S) traffic crosses a hardened Squid gateway with source ACLs, destination policy, logs, and rate limits.</p>
+              <small>Squid is egress only; runners reach TCP 5000/9222 directly over the VPC.</small>
+            </article>
+            <article class="infra-feature feature-scale">
+              <span class="infra-feature-index">02 · HORIZONTAL SCALE</span>
+              <h3>Shard the queue.<br>Keep tasks isolated.</h3>
+              <p>External schedulers distribute deterministic batch shards across runner hosts. Each task receives one disposable VM and an independent cleanup boundary.</p>
+              <small>Capacity follows the lowest ECS, subnet, model-QPS, proxy, and budget quota.</small>
+            </article>
+            <article class="infra-feature feature-guide">
+              <span class="infra-feature-index">03 · REPRODUCIBLE IMAGE</span>
+              <h3>Build, verify,<br>sanitize, then scale.</h3>
+              <p>The guide pins the OSWorld checkout and Ubuntu image, verifies checksums, provisions Coder dependencies, and documents both deployment topologies.</p>
+              <a class="button button-primary" href="volcengine-osworld-v1.html">Read the hosted infra guide <span aria-hidden="true">→</span></a>
+              <a class="infra-source-link" href="volcengine-osworld-v1.md">View Markdown source</a>
+            </article>
+          </div>
+          <p class="infra-caveat"><strong>Operator deployment pattern.</strong> The pinned OSWorld dependency remains unmodified; private-address lifecycle and proxy policy belong to the infrastructure layer.</p>
         </div>
       </div>
     </section>
@@ -245,7 +255,7 @@
 
   <footer>
     <div class="footer-inner">
-      <div class="footer-meta"><a href="https://github.com/GADE-Tech/GADE-CUA-Evolve">Project repository ↗</a><a href="https://github.com/GADE-Tech/GADE-CUA-Evolve/blob/main/docs/volcengine-osworld-v1.md">Volcengine infra guide ↗</a><a href="https://github.com/xlang-ai/OSWorld">OSWorld ↗</a><a href="https://github.com/microsoft/WindowsAgentArena">Windows Agent Arena ↗</a></div>
+      <div class="footer-meta"><a href="https://github.com/GADE-Tech/GADE-CUA-Evolve">Project repository ↗</a><a href="volcengine-osworld-v1.html">Volcengine infra guide ↗</a><a href="https://github.com/xlang-ai/OSWorld">OSWorld ↗</a><a href="https://github.com/microsoft/WindowsAgentArena">Windows Agent Arena ↗</a></div>
     </div>
   </footer>
 

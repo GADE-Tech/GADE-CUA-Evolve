@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A reproducible Volcengine image and scalable private rollout infrastructure guide for GADE CUA Evolve and OSWorld v1.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Volcengine OSWorld v1 Image & Infrastructure Guide">
+  <meta property="og:description" content="Build the pinned Ubuntu image, provision Coder dependencies, validate the guest, and scale private no-EIP workers through controlled Squid egress.">
+  <link rel="canonical" href="https://gade-tech.github.io/GADE-CUA-Evolve/volcengine-osworld-v1.html">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101a2a'/%3E%3Ccircle cx='24' cy='32' r='7' fill='%23557fa3'/%3E%3Ccircle cx='40' cy='24' r='7' fill='%2377779b'/%3E%3Ccircle cx='40' cy='40' r='7' fill='%238da8bc'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=__BUILD_VERSION__">
+  <link rel="stylesheet" href="guide.css?v=__BUILD_VERSION__">
+  <title>Volcengine OSWorld v1 Image & Infrastructure Guide</title>
+</head>
+<body class="guide-page">
+  <a class="skip-link" href="#guide-content">Skip to guide</a>
+  <nav class="site-nav guide-nav" aria-label="Primary navigation">
+    <a class="brand" href="index.html" aria-label="GADE CUA Evolve home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>GADE <b>CUA Evolve</b></span></a>
+    <div class="nav-links"><a href="index.html#infra">Infra overview</a><a href="#scale">Scaling</a><a aria-current="page" href="#top">Guide</a><a class="nav-github" href="https://github.com/GADE-Tech/GADE-CUA-Evolve">GitHub ↗</a></div>
+  </nav>
+
+  <main class="guide-main" id="guide-content">
+    <header class="guide-hero" id="top">
+      <div class="guide-hero-inner">
+        <div class="guide-breadcrumb"><a href="index.html">GADE CUA Evolve</a><span>/</span><span>Infrastructure guide</span></div>
+        <h1>OSWorld v1 on<br><em>Volcengine.</em></h1>
+        <p class="guide-lede">Build a reproducible Ubuntu guest from locked public inputs, provision the Coder toolchain, validate disposable execution, and scale trajectory collection with private workers and controlled shared egress.</p>
+        <div class="guide-locks" aria-label="Pinned reproduction inputs">
+          <div class="guide-lock"><span>OSWORLD COMMIT</span><strong>b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf</strong></div>
+          <div class="guide-lock"><span>IMAGE REVISION</span><strong>9600484566f238a9ce57ea32c33567c6044e41d8</strong></div>
+          <div class="guide-lock"><span>ARCHIVE SHA-256</span><strong>b795b6cd4c69b252c1b4f10150a347795555032501b60fd031751ed09b896712</strong></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="guide-shell">
+      <aside class="guide-toc" aria-label="Guide contents">
+        <span>ON THIS PAGE</span>
+        <ol>
+          <li><a href="#inputs">Locked inputs</a></li><li><a href="#host">Host checkout</a></li><li><a href="#cloud">Cloud prerequisites</a></li><li><a href="#download">Download & upload</a></li><li><a href="#import">Import image</a></li><li><a href="#provision">Provision Coder</a></li><li><a href="#sanitize">Sanitize image</a></li><li><a href="#scale">Scale rollouts</a></li><li><a href="#configure">Configure runtime</a></li><li><a href="#validate">Validate & clean</a></li>
+        </ol>
+        <a class="guide-toc-source" href="volcengine-osworld-v1.md">View Markdown source →</a>
+      </aside>
+
+      <article class="guide-article">
+        <section class="guide-section" id="inputs">
+          <div class="guide-section-head"><span class="guide-step">00</span><div><span class="micro-label">REPRODUCIBILITY CONTRACT</span><h2>Start from locked, public inputs.</h2></div></div>
+          <p>The tested dependency is <a href="https://github.com/GADE-Tech/OSWorld">GADE-Tech/OSWorld</a> at the commit above. That revision is an upstream OSWorld commit with no GADE-specific source changes. The guest comes from the public <a href="https://huggingface.co/datasets/xlangai/ubuntu_osworld/blob/9600484566f238a9ce57ea32c33567c6044e41d8/Ubuntu.qcow2.zip">Ubuntu.qcow2.zip</a>.</p>
+          <div class="guide-facts"><div class="guide-fact"><span>ARCHIVE SIZE</span><strong>12,273,896,463 bytes</strong></div><div class="guide-fact"><span>GUEST</span><strong>Ubuntu · OSWorld v1</strong></div><div class="guide-fact"><span>RUNTIME</span><strong>Disposable Volcengine ECS</strong></div></div>
+          <div class="guide-callout warning"><strong>Cost and safety.</strong> This workflow can create TOS, snapshot, EIP, disk, and ECS resources. Never bake model keys, cloud credentials, browser sessions, proxy credentials, or benchmark accounts into the image.</div>
+        </section>
+
+        <section class="guide-section" id="host">
+          <div class="guide-section-head"><span class="guide-step">01</span><div><span class="micro-label">LOCAL PREPARATION</span><h2>Prepare the host checkout.</h2></div></div>
+          <p>Python 3.12 is recommended for the pinned OSWorld environment. Keep the benchmark checkout adjacent to this repository or set <code>OSWORLD_ROOT</code> explicitly.</p>
+          <pre class="guide-code" data-language="bash"><code>git clone https://github.com/GADE-Tech/OSWorld.git
+git -C OSWorld checkout b7db4d8c85d9e95e0b1db44de5bec954cf37f0cf
+
+git clone https://github.com/GADE-Tech/GADE-CUA-Evolve.git
+cd GADE-CUA-Evolve
+uv sync --extra google --extra dev
+uv pip install -e ../OSWorld
+export OSWORLD_ROOT="$(cd ../OSWorld &amp;&amp; pwd)"
+cp .env.example .env</code></pre>
+          <p>Secrets belong only in the process environment or local untracked <code>.env</code>. YAML contains non-sensitive configuration.</p>
+        </section>
+
+        <section class="guide-section" id="cloud">
+          <div class="guide-section-head"><span class="guide-step">02</span><div><span class="micro-label">CLOUD FOUNDATION</span><h2>Create the network and image prerequisites.</h2></div></div>
+          <p>Enable ECS, snapshots, and TOS in one region. Create a VPC, subnet, and security group. The TOS bucket used for image import must be in the target ECS image region, and ECS needs explicit service-account authorization to read the object.</p>
+          <div class="guide-table-wrap"><table class="guide-table"><thead><tr><th>Port</th><th>Allowed source</th><th>Purpose</th></tr></thead><tbody><tr><td>TCP 5000</td><td>Runner security group / private CIDR</td><td>OSWorld control API</td></tr><tr><td>TCP 9222</td><td>Runner security group / private CIDR</td><td>Chrome DevTools proxy</td></tr><tr><td>TCP 5910</td><td>Optional trusted operator only</td><td>noVNC debugging</td></tr><tr><td>TCP 22</td><td>Optional trusted operator only</td><td>Image provisioning</td></tr></tbody></table></div>
+          <div class="guide-callout"><strong>Keep 1337 private.</strong> Chrome port 1337 remains inside the VM. Do not add it—or public 5000/9222 rules—to the security group.</div>
+          <h3>Default disposable-run path</h3>
+          <div class="guide-flow" role="img" aria-label="Default disposable OSWorld task flow"><div><span>01</span><strong>CLI / batch runner</strong></div><div><span>02</span><strong>AgentLoop + models</strong></div><div><span>03</span><strong>Private control</strong></div><div><span>04</span><strong>One OSWorld VM</strong></div><div><span>05</span><strong>Record, then delete</strong></div></div>
+        </section>
+
+        <section class="guide-section" id="download">
+          <div class="guide-section-head"><span class="guide-step">03</span><div><span class="micro-label">IMAGE SUPPLY CHAIN</span><h2>Download, verify, and upload QCOW2.</h2></div></div>
+          <p>Install <code>curl</code>, <code>unzip</code>, <code>qemu-img</code>, and Volcengine <a href="https://www.volcengine.com/docs/6349/152752?lang=en">tosutil</a>. Use a volume with at least 40 GiB free.</p>
+          <pre class="guide-code" data-language="bash"><code>./scripts/prepare_volcengine_image.sh \
+  --work-dir /data/osworld-image \
+  --upload \
+  --tos-bucket YOUR_PRIVATE_BUCKET \
+  --tos-key osworld-v1/Ubuntu.qcow2</code></pre>
+          <p>The script resumes partial downloads, enforces SHA-256, runs <code>qemu-img info/check</code>, uploads with <code>tosutil cp -vchecksum</code>, and prints the object URL required by the ECS import wizard. Use <code>--dry-run</code> to inspect locked inputs without downloading.</p>
+          <div class="guide-callout warning">Keep the TOS bucket and object private. The ECS service-account authorization—not public object access—provides import access.</div>
+        </section>
+
+        <section class="guide-section" id="import">
+          <div class="guide-section-head"><span class="guide-step">04</span><div><span class="micro-label">MANUAL CONTROL GATE</span><h2>Import the base image.</h2></div></div>
+          <ol><li>Open <strong>ECS → Images → Custom images → Import image</strong>.</li><li>Select the same region as the TOS bucket.</li><li>Paste the object URL printed by the script.</li><li>Select Linux/Ubuntu and the OS version matching the guest.</li><li>Import as a system-disk image, enable detection, and wait for both tasks to complete.</li></ol>
+          <p>Image metadata selection and the first ECS/TOS authorization intentionally remain manual console gates.</p>
+        </section>
+
+        <section class="guide-section" id="provision">
+          <div class="guide-section-head"><span class="guide-step">05</span><div><span class="micro-label">GUEST TOOLCHAIN</span><h2>Provision Coder dependencies.</h2></div></div>
+          <p>Create one temporary ECS instance from the imported base, connect through a trusted private path or temporarily restricted SSH, and run:</p>
+          <pre class="guide-code" data-language="bash"><code>./scripts/provision_osworld_coder.sh</code></pre>
+          <p>The script installs <code>curl</code>, <code>jq</code>, <code>sqlite3</code>, ImageMagick, <code>xdotool</code>, and common Office/PDF Python packages. It verifies Python modules, Bash tooling, the OSWorld service, and guest ports 5000/9222.</p>
+          <pre class="guide-code" data-language="bash"><code>systemctl status osworld_server.service
+curl --fail http://127.0.0.1:5000/probe
+curl --fail http://127.0.0.1:9222/json/version</code></pre>
+        </section>
+
+        <section class="guide-section" id="sanitize">
+          <div class="guide-section-head"><span class="guide-step">06</span><div><span class="micro-label">FINAL IMAGE</span><h2>Sanitize, stop, and create the image.</h2></div></div>
+          <p>Remove task artifacts and inspect browser profiles, home directories, <code>/root</code>, and temporary storage. Never use a guest that has held real benchmark accounts as a public reproduction base.</p>
+          <pre class="guide-code" data-language="bash"><code>./scripts/provision_osworld_coder.sh --finalize</code></pre>
+          <p>The guarded finalizer refuses common <code>.env</code>, OAuth credential, or private-key files and credential assignments. It clears histories, Coder temporary files, pip cache, and Cloud-Init instance state.</p>
+          <div class="guide-callout warning"><strong>Stop the instance before imaging.</strong> Then use Volcengine's “Create a custom Linux image” console workflow. Record the resulting image ID privately; do not commit it.</div>
+        </section>
+
+        <section class="guide-section guide-scale" id="scale">
+          <div class="guide-section-head"><span class="guide-step">07</span><div><span class="micro-label">TRAINING / ROLLOUT MODE</span><h2>Scale private workers through controlled egress.</h2></div></div>
+          <p>For high-volume inference and trajectory collection, remove per-worker EIPs. Place runner hosts and guests in the same VPC, address workers over private IPs, and route required HTTP(S) traffic through hardened Squid gateways.</p>
+          <div class="infra-topology" role="img" aria-label="Private no-EIP OSWorld rollout topology">
+            <div class="infra-map-head"><span>PRIVATE ROLLOUT TOPOLOGY</span><small>one control plane · N isolated workers · centralized egress</small></div>
+            <div class="infra-external"><div class="infra-node node-control"><span>CONTROL PLANE</span><strong>Scheduler + GADE runners</strong><small>shards · retries · cleanup</small></div><div class="infra-node node-model"><span>INFERENCE</span><strong>Model endpoint pool</strong><small>Planner · Grounder · Coder · ARM</small></div></div>
+            <div class="infra-link"><span>private control</span></div>
+            <div class="vpc-frame"><div class="vpc-label"><span>VOLCENGINE VPC</span><small>private subnets · security-group isolation</small></div><div class="gateway-row"><div class="infra-node node-proxy"><span>SHARED EGRESS</span><strong>Squid gateway</strong><small>ACL · logs · rate limits</small></div><div class="infra-node node-store"><span>ARTIFACTS</span><strong>TOS / dataset pipeline</strong><small>screenshots · JSONL · trajectories</small></div></div><div class="worker-bus"><span>TCP 5000 + 9222 from runner SG only</span></div><div class="worker-grid"><div class="infra-node worker"><span>WORKER 01</span><strong>OSWorld VM</strong><small>no EIP · disposable</small></div><div class="infra-node worker"><span>WORKER 02</span><strong>OSWorld VM</strong><small>no EIP · disposable</small></div><div class="infra-node worker worker-more"><span>WORKER N</span><strong>Horizontal scale</strong><small>one isolated task per VM</small></div></div></div>
+          </div>
+          <div class="guide-callout"><strong>Squid is egress, not control.</strong> Runners still reach worker private addresses directly. Never proxy or publish guest 5000/9222, and never expose Squid as an unauthenticated public proxy.</div>
+          <h3>Required infrastructure edges</h3>
+          <ol><li>Runner security group → workers on TCP 5000/9222 only.</li><li>Worker security group → Squid on TCP 3128 only.</li><li>Squid → one controlled EIP or managed NAT path.</li><li>Runners → model endpoints and TOS, preferably over private endpoints.</li><li>Persist trajectories before queue acknowledgement and worker deletion.</li></ol>
+          <pre class="guide-code" data-language="dotenv"><code>HTTP_PROXY=http://squid.service.private:3128
+HTTPS_PROXY=http://squid.service.private:3128
+NO_PROXY=127.0.0.1,localhost,.service.private</code></pre>
+          <p>Chromium and desktop applications may require system or application-specific proxy policy. Environment variables alone do not guarantee GUI traffic uses Squid. Restrict CONNECT ports and destinations, redact sensitive log data, end Squid policy with <code>http_access deny all</code>, and use redundant gateways for long jobs.</p>
+          <h3>Shard the runner layer</h3>
+          <pre class="guide-code" data-language="bash"><code>gadecua batch --env osworldv1 \
+  --manifest "$OSWORLD_ROOT/evaluation_examples/test_nogdrive.json" \
+  --shard-index 0 --num-shards 8 --workers 4 \
+  --resume --infra-retries 2 --evaluate \
+  --output-dir results/rollouts/shard-00</code></pre>
+          <p>Run shard indices <code>0..7</code> on separate supervised runners. Size concurrency from the lowest subnet-IP, ECS, disk, model-QPS, proxy-throughput, or budget limit. This is an operator topology rather than a current <code>--no-eip</code> switch; the pinned OSWorld dependency remains unmodified.</p>
+        </section>
+
+        <section class="guide-section" id="configure">
+          <div class="guide-section-head"><span class="guide-step">08</span><div><span class="micro-label">RUNTIME CONFIG</span><h2>Configure GADE CUA Evolve.</h2></div></div>
+          <p>Copy <code>.env.example</code> to local <code>.env</code> and replace placeholders without committing the result.</p>
+          <pre class="guide-code" data-language="dotenv"><code>GEMINI_AK=...
+GEMINI_MODEL=gemini-3.5-flash-lite
+
+VOLCENGINE_ACCESS_KEY_ID=...
+VOLCENGINE_SECRET_ACCESS_KEY=...
+VOLCENGINE_REGION=...
+VOLCENGINE_ZONE_ID=...
+VOLCENGINE_IMAGE_ID=...
+VOLCENGINE_INSTANCE_TYPE=...
+VOLCENGINE_SUBNET_ID=...
+VOLCENGINE_SECURITY_GROUP_ID=...
+VOLCENGINE_DEFAULT_PASSWORD=...</code></pre>
+          <p>The VM password is resolved only at runtime and supplied consistently to OSWorld, the Planner, and Coder redaction. It must not appear in YAML.</p>
+        </section>
+
+        <section class="guide-section" id="validate">
+          <div class="guide-section-head"><span class="guide-step">09</span><div><span class="micro-label">ACCEPTANCE</span><h2>Probe, smoke-test, and clean up.</h2></div></div>
+          <pre class="guide-code" data-language="bash"><code>gade-cua env probe \
+  --config configs/volcengine_gta15_gemini.yaml \
+  --check-code --check-services \
+  --output probe.png
+
+gadecua --env osworldv1 \
+  --task chrome/2ae9ba84-3a0d-4d4c-8338-3a1478dc5fe3 \
+  --set loop.max_steps=3 --verbose</code></pre>
+          <p>The probe captures a screenshot, runs harmless Python and Bash in the guest, checks services, and closes the environment in <code>finally</code>. After interrupted runs, verify temporary ECS instances and EIPs are gone.</p>
+          <h3>Reproduction record</h3>
+          <p>Record the GADE commit, OSWorld commit, image revision/checksum, private final image ID, region, instance type, models, manifest, overrides, and ARM/Coder status. Never include secrets.</p>
+          <div class="guide-official-links"><a href="https://www.volcengine.com/docs/6396/69081?lang=zh">Import custom image ↗</a><a href="https://www.volcengine.com/docs/6396/71393?lang=zh">Create custom image ↗</a><a href="https://www.volcengine.com/docs/6349/152752?lang=en">tosutil upload ↗</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="guide-footer"><div class="guide-footer-inner"><p>GADE CUA Evolve · OSWorld v1 · Volcengine</p><div><a href="index.html">Project website</a> · <a href="volcengine-osworld-v1.md">Markdown source</a> · <a href="https://github.com/GADE-Tech/GADE-CUA-Evolve">GitHub</a></div></div></footer>
+</body>
+</html>
