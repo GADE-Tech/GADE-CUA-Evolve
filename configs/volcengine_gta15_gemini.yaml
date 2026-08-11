@@ -19,6 +19,19 @@ grounder:
   max_turns: 5
   semantic_retries: 3
   crop_radius: 200
+coder:
+  llm:
+    provider: google
+    model: gemini-3.5-flash-lite
+    model_env: GEMINI_MODEL
+    api_key_env: GEMINI_AK
+    base_url_env: null
+    max_tokens: 16384
+    max_retries: 5
+    temperature: 0.0
+  max_rounds: 20
+  command_timeout: 30
+  max_output_chars: 40000
 arm:
   llm:
     provider: google
@@ -49,7 +62,7 @@ env:
   region: ap-southeast-1
   # Allocate a disposable instance from VOLCENGINE_IMAGE_ID for every run.
   path_to_vm: null
-  snapshot_name: image-yery9soico9at9tlox9v
+  snapshot_name: init_state
   action_space: pyautogui
   headless: true
   screen_size: [1920, 1080]

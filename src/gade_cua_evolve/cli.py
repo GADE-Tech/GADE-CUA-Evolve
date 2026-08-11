@@ -25,7 +25,7 @@ app.add_typer(config_app, name="config")
 app.add_typer(env_app, name="env")
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OSWORLD_ROOT = Path("/Users/bofeizhang/Documents/GADE Projects/OSWorld")
+DEFAULT_OSWORLD_ROOT = REPOSITORY_ROOT.parent / "OSWorld"
 ENV_PROFILES = {
     "osworldv1": REPOSITORY_ROOT / "configs" / "volcengine_gta15_gemini.yaml",
 }
@@ -78,11 +78,27 @@ def resolve_osworld_task(task_ref: str, osworld_root: Path | None = None) -> Pat
     if not TASK_REF_PATTERN.fullmatch(task_ref):
         raise typer.BadParameter("Task must use domain/task_id syntax")
     domain, task_id = task_ref.split("/", 1)
-    root = osworld_root or Path(os.getenv("OSWORLD_ROOT", DEFAULT_OSWORLD_ROOT))
+    root = resolve_osworld_root(osworld_root)
     path = root / "evaluation_examples" / "examples" / domain / f"{task_id}.json"
     if not path.is_file():
         raise typer.BadParameter(f"OSWorld task does not exist: {task_ref}")
     return path
+
+
+def resolve_osworld_root(explicit: Path | None = None) -> Path:
+    """Resolve the pinned OSWorld checkout without machine-specific fallbacks."""
+    if explicit is not None:
+        root = explicit.expanduser().resolve()
+    elif os.getenv("OSWORLD_ROOT"):
+        root = Path(os.environ["OSWORLD_ROOT"]).expanduser().resolve()
+    else:
+        root = DEFAULT_OSWORLD_ROOT.resolve()
+    if not (root / "evaluation_examples" / "examples").is_dir():
+        raise typer.BadParameter(
+            "OSWorld v1 checkout not found. Set OSWORLD_ROOT or clone "
+            "https://github.com/GADE-Tech/OSWorld next to this repository."
+        )
+    return root
 
 
 def run_task_reference(
@@ -94,6 +110,7 @@ def run_task_reference(
     verbose: bool = False,
     arm_enabled: bool = False,
     evaluate: bool = False,
+    osworld_root: Path | None = None,
 ) -> None:
     configure_logging(verbose)
     config_path = resolve_env_profile(env_name)
@@ -102,7 +119,7 @@ def run_task_reference(
     result_root = output_dir or Path("results") / env_name / domain
     effective_overrides.append(f"loop.output_dir={json.dumps(str(result_root))}")
     config = load_config(config_path, effective_overrides)
-    task = load_task(resolve_osworld_task(task_ref))
+    task = load_task(resolve_osworld_task(task_ref, osworld_root))
     result = run_task(task, config, arm_enabled=arm_enabled, evaluate=evaluate)
     payload = asdict(result)
     payload["task"] = result.task.model_dump(mode="json")
@@ -118,6 +135,9 @@ def main(
     ] = None,
     overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
     output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    osworld_root: Annotated[
+        Path | None, typer.Option("--osworld-root", help="Explicit OSWorld v1 checkout.")
+    ] = None,
     config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
         "configs/volcengine_gta15_gemini.yaml"
     ),
@@ -135,7 +155,9 @@ def main(
         effective_overrides = list(overrides or [])
         if output_dir:
             effective_overrides.append(f"loop.output_dir={json.dumps(str(output_dir))}")
-        initial_task = load_task(resolve_osworld_task(task_ref)) if task_ref else None
+        initial_task = (
+            load_task(resolve_osworld_task(task_ref, osworld_root)) if task_ref else None
+        )
         run_tui(
             load_config(config_path, effective_overrides),
             arm_enabled=arm_enabled,
@@ -152,6 +174,7 @@ def main(
         verbose=verbose,
         arm_enabled=arm_enabled,
         evaluate=evaluate,
+        osworld_root=osworld_root,
     )
 
 
@@ -165,6 +188,9 @@ def exec_command(
     task_ref: Annotated[str | None, typer.Option("--task")] = None,
     overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
     output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    osworld_root: Annotated[
+        Path | None, typer.Option("--osworld-root", help="Explicit OSWorld v1 checkout.")
+    ] = None,
     arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
     evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
@@ -184,6 +210,7 @@ def exec_command(
             verbose=verbose,
             arm_enabled=arm_enabled,
             evaluate=evaluate,
+            osworld_root=osworld_root,
         )
         return
     configure_logging(verbose)
@@ -214,6 +241,9 @@ def batch_command(
     ] = None,
     env_name: Annotated[str, typer.Option("--env", help="Environment profile.")] = "osworldv1",
     output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    osworld_root: Annotated[
+        Path | None, typer.Option("--osworld-root", help="Explicit OSWorld v1 checkout.")
+    ] = None,
     domains: Annotated[
         list[str] | None,
         typer.Option("--domain", help="Domain or comma-separated domains; repeatable."),
@@ -234,8 +264,11 @@ def batch_command(
     verbose: Annotated[bool, typer.Option("--verbose")] = False,
 ) -> None:
     """Run an OSWorld manifest with process isolation, resume, and aggregation."""
-    osworld_root = Path(os.getenv("OSWORLD_ROOT", DEFAULT_OSWORLD_ROOT)).resolve()
-    manifest_path = manifest or osworld_root / "evaluation_examples" / "test_nogdrive.json"
+    resolved_osworld_root = resolve_osworld_root(osworld_root)
+    manifest_path = (
+        manifest
+        or resolved_osworld_root / "evaluation_examples" / "test_nogdrive.json"
+    )
     if not manifest_path.is_file():
         raise typer.BadParameter(f"Batch manifest does not exist: {manifest_path}")
     selected_config = config_path or resolve_env_profile(env_name)
@@ -246,7 +279,7 @@ def batch_command(
             BatchOptions(
                 manifest=manifest_path,
                 config=selected_config,
-                osworld_root=osworld_root,
+                osworld_root=resolved_osworld_root,
                 output_dir=selected_output,
                 domains=tuple(domains or ()),
                 limit=limit,
@@ -309,16 +342,89 @@ def env_probe(
         "configs/default.yaml"
     ),
     output: Annotated[Path, typer.Option("--output")] = Path("probe.png"),
+    check_code: Annotated[
+        bool,
+        typer.Option("--check-code", help="Run harmless Python and Bash checks inside the VM."),
+    ] = False,
+    check_python: Annotated[
+        bool, typer.Option("--check-python", help="Run a harmless Python check inside the VM.")
+    ] = False,
+    check_bash: Annotated[
+        bool, typer.Option("--check-bash", help="Run a harmless Bash check inside the VM.")
+    ] = False,
+    check_services: Annotated[
+        bool,
+        typer.Option(
+            "--check-services",
+            help="Check OSWorld control and Chrome DevTools guest ports.",
+        ),
+    ] = False,
+    check_screenshot: Annotated[
+        bool,
+        typer.Option(
+            "--check-screenshot/--no-check-screenshot",
+            help="Capture and validate a desktop screenshot.",
+        ),
+    ] = True,
 ) -> None:
     config = load_config(config_path)
     env = ENVS[config.env.name](config.env)
+    payload: dict[str, object] = {"environment": config.env.name}
+    failed = False
     try:
-        observation = env.observe()
-        if observation.screenshot:
-            output.write_bytes(observation.screenshot)
-            typer.echo(str(output))
+        if check_screenshot:
+            observation = env.observe()
+            if observation.screenshot:
+                output.write_bytes(observation.screenshot)
+                payload["screenshot"] = str(output)
+            else:
+                payload["screenshot"] = None
+                failed = True
+        checks = []
+        if check_code or check_python:
+            checks.append(("python", "python", "print('gade-coder-python-ok')"))
+        if check_code or check_bash:
+            checks.append(("bash", "bash", "printf '%s\\n' gade-coder-bash-ok"))
+        if check_services:
+            checks.append(
+                (
+                    "services",
+                    "bash",
+                    """set -e
+python3 - <<'PY'
+import socket
+
+for port in (5000, 9222):
+    with socket.create_connection(("127.0.0.1", port), timeout=5):
+        print(f"guest port {port}: reachable")
+PY
+if command -v systemctl >/dev/null 2>&1 && \
+   systemctl list-unit-files osworld_server.service --no-legend | grep -q osworld_server; then
+    systemctl is-active --quiet osworld_server.service
+    printf '%s\\n' 'osworld_server.service: active'
+fi""",
+                )
+            )
+        for label, language, code in checks:
+            try:
+                result = env.run_code(language, code, timeout=15)
+                payload[label] = asdict(result)
+                if (
+                    result.status.lower() not in {"success", "ok", "completed"}
+                    or result.error
+                ):
+                    failed = True
+            except Exception as exc:  # noqa: BLE001 - report unsupported probe surfaces
+                payload[label] = {
+                    "status": "error",
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+                failed = True
     finally:
         env.close()
+    typer.echo(json.dumps(payload, indent=2))
+    if failed:
+        raise typer.Exit(code=1)
 
 
 @app.command("list")

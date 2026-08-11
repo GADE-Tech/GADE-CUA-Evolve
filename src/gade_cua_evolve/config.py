@@ -59,6 +59,15 @@ class ARMConfig(StrictModel):
     trajectory_max_images: int = Field(default=12, ge=2, le=32)
 
 
+class CoderConfig(StrictModel):
+    """Bounded delegated coding-agent configuration."""
+
+    llm: LLMConfig = Field(default_factory=LLMConfig)
+    max_rounds: int = Field(default=20, ge=1, le=50)
+    command_timeout: int = Field(default=30, ge=1, le=300)
+    max_output_chars: int = Field(default=40000, ge=1000, le=200000)
+
+
 class AgentConfig(StrictModel):
     name: str = "qwen3vl"
     history_n: int = 4
@@ -120,6 +129,7 @@ class TaskPublicView(StrictModel):
 class RunConfig(StrictModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     grounder: GrounderConfig | None = None
+    coder: CoderConfig | None = None
     arm: ARMConfig | None = None
     agent: AgentConfig = Field(default_factory=AgentConfig)
     env: EnvConfig = Field(default_factory=EnvConfig)
@@ -133,6 +143,19 @@ def resolve_env(name: str | None, *, required: bool = False) -> str | None:
     if required and not value:
         raise ValueError(f"Required environment variable {name!r} is not set")
     return value
+
+
+def resolve_client_password(config: EnvConfig) -> str:
+    """Resolve a VM password at runtime without placing it in serializable config."""
+    if config.client_password:
+        return config.client_password
+    if config.provider_name == "volcengine":
+        password = resolve_env("VOLCENGINE_DEFAULT_PASSWORD", required=True)
+        assert password is not None
+        return password
+    if config.provider_name == "aws":
+        return "osworld-public-evaluation"
+    return "password"
 
 
 def _parse_override(value: str) -> Any:

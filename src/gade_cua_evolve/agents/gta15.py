@@ -12,9 +12,10 @@ from gade_cua_evolve.envs import Observation, StepOutcome
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
 
 from .base import Agent, AgentStep
+from .coder import CodeExecutor, CoderAgent, CoderResult
 from .grounding import Grounder
 from .gta15_prompts import CUA_SYSTEM_PROMPT, DEFAULT_REPLY, START_MESSAGE
-from .gta15_tools import CUA_TOOLS, GTA15ActionRenderer
+from .gta15_tools import CODE_AGENT_TOOL, CUA_TOOLS, GTA15ActionRenderer
 
 
 def _image_part(screenshot: bytes) -> dict[str, Any]:
@@ -45,11 +46,16 @@ class GTA15Agent(Agent):
         config: AgentConfig,
         grounder: Grounder,
         client_password: str = "",
+        coder: CoderAgent | None = None,
+        code_executor: CodeExecutor | None = None,
     ) -> None:
         super().__init__(llm, config)
         self.grounder = grounder
         self.renderer = GTA15ActionRenderer(self.grounder, platform=config.platform)
         self.client_password = client_password
+        self.coder = coder
+        self.code_executor = code_executor
+        self.tools = [*CUA_TOOLS, CODE_AGENT_TOOL] if coder is not None else CUA_TOOLS
         self._instruction: str | None = None
         self._pending_call: ToolCall | None = None
         self._pending_output: str | None = None
@@ -71,7 +77,7 @@ class GTA15Agent(Agent):
 
         response: LLMResponse | None = None
         for retry in range(self.config.internal_retries):
-            response = self.llm.complete(self.state.messages, tools=CUA_TOOLS)
+            response = self.llm.complete(self.state.messages, tools=self.tools)
             if len(response.tool_calls) <= 1 and (response.tool_calls or self._terminal(response.text)):
                 break
             reminder = DEFAULT_REPLY.format(instruction=instruction)
@@ -109,6 +115,8 @@ class GTA15Agent(Agent):
             )
 
         call = response.tool_calls[0]
+        if call.name == "call_code_agent":
+            return self._delegate_to_coder(response, call, instruction, obs)
         action, tool_output = self.renderer.execute(call, obs.screenshot)
         self._pending_call = call
         self._pending_output = tool_output
@@ -121,6 +129,59 @@ class GTA15Agent(Agent):
             metadata={
                 "tool_call": {"id": call.id, "name": call.name, "arguments": dict(call.arguments)},
                 "tool_output": tool_output,
+            },
+        )
+
+    def _delegate_to_coder(
+        self,
+        response: LLMResponse,
+        call: ToolCall,
+        instruction: str,
+        obs: Observation,
+    ) -> AgentStep:
+        task = str(call.arguments.get("task", "")).strip()
+        if self.coder is None or self.code_executor is None:
+            result = CoderResult(
+                completion_reason="UNAVAILABLE",
+                summary="Coder execution is not configured for this environment.",
+                rounds=0,
+                error_cause="coder_unavailable",
+            )
+        elif not task:
+            result = CoderResult(
+                completion_reason="INVALID_TASK",
+                summary="The planner did not provide a non-empty coding subtask.",
+                rounds=0,
+                error_cause="empty_subtask",
+            )
+        else:
+            try:
+                result = self.coder.execute(
+                    original_task=instruction,
+                    subtask=task,
+                    screenshot=obs.screenshot,
+                    executor=self.code_executor,
+                )
+            except Exception as exc:  # noqa: BLE001 - return delegated failures to planner
+                result = CoderResult(
+                    completion_reason="ERROR",
+                    summary="Coder execution failed before it could return a verified report.",
+                    rounds=0,
+                    error_cause=type(exc).__name__,
+                )
+        tool_output = result.planner_report()
+        self._pending_call = call
+        self._pending_output = tool_output
+        self.state.actions.append(f"{call.name}({json.dumps(dict(call.arguments))})")
+        return AgentStep(
+            raw_response=response.text,
+            thought=response.reasoning or response.text,
+            low_level_instruction=f"{call.name}({json.dumps(dict(call.arguments))})",
+            actions=["WAIT"],
+            metadata={
+                "tool_call": {"id": call.id, "name": call.name, "arguments": dict(call.arguments)},
+                "tool_output": tool_output,
+                "coder": result.metadata(),
             },
         )
 

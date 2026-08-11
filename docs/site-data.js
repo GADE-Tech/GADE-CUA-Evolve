@@ -3,7 +3,7 @@ window.GADE_SITE_DATA = {
     name: "GADE CUA Evolve",
     author: "Author One · Author Two · Author Three · Author Four",
     github: "https://github.com/GADE-Tech/GADE-CUA-Evolve",
-    description: "A composable computer-use agent runtime where ARM checks real desktop outcomes and turns evidence into stop-or-retry decisions."
+    description: "A self-evolving computer-use agent and scalable OSWorld rollout runtime where Planner, Grounder, Coder, and ARM act, verify, and improve from real desktop outcomes."
   },
   heroScores: [
     {

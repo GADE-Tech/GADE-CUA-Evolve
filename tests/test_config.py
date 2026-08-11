@@ -2,7 +2,13 @@ import pytest
 from pydantic import ValidationError
 
 from gade_cua_evolve.cli import load_task
-from gade_cua_evolve.config import TaskSpec, load_config, resolve_env
+from gade_cua_evolve.config import (
+    EnvConfig,
+    TaskSpec,
+    load_config,
+    resolve_client_password,
+    resolve_env,
+)
 
 
 def test_load_config_and_override() -> None:
@@ -25,6 +31,14 @@ def test_dotenv_secret_loading(tmp_path, monkeypatch) -> None:
     assert resolve_env("CUSTOM_API_KEY", required=True) == "test-key"
 
 
+def test_volcengine_client_password_is_resolved_without_serializing(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("VOLCENGINE_DEFAULT_PASSWORD=vm-secret\n", encoding="utf-8")
+    config = EnvConfig(provider_name="volcengine")
+    assert resolve_client_password(config) == "vm-secret"
+    assert config.client_password == ""
+
+
 def test_osworld_task_file_is_normalized(tmp_path) -> None:
     path = tmp_path / "task.json"
     path.write_text(
@@ -40,6 +54,9 @@ def test_three_model_profile_and_public_task_view() -> None:
     config = load_config("configs/volcengine_gta15_gemini.yaml")
     assert config.grounder is not None
     assert config.grounder.max_turns == 5
+    assert config.coder is not None
+    assert config.coder.max_rounds == 20
+    assert config.coder.llm.provider == "google"
     assert config.arm is not None
     assert config.arm.enable_trajectory_check is True
 

@@ -4,10 +4,10 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from gade_cua_evolve.agents import GTA15Agent
+from gade_cua_evolve.agents import CoderAgent, GTA15Agent
 from gade_cua_evolve.agents.grounding import Grounder
-from gade_cua_evolve.config import AgentConfig
-from gade_cua_evolve.envs import Observation, StepOutcome
+from gade_cua_evolve.config import AgentConfig, CoderConfig
+from gade_cua_evolve.envs import CodeExecutionResult, Observation, StepOutcome
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
 
 
@@ -149,3 +149,57 @@ def test_terminal_responses(text: str, expected: str) -> None:
     assert len(client.main_calls) == 1
     assert result.actions == [expected]
     assert result.done is True
+
+
+def test_coder_tool_is_conditional_and_returns_report_to_planner() -> None:
+    image = screenshot()
+    planner = FakeGeminiClient(
+        [
+            call("call_code_agent", task="Inspect and update /tmp/value", rationale="deterministic"),
+            call("hotkey", keys=["ctrl", "s"]),
+        ]
+    )
+    coder_client = FakeGeminiClient(
+        [
+            call("run_python", code="print('verified')"),
+            call("finish", summary="Updated /tmp/value", proof="verified"),
+        ]
+    )
+    executions = []
+
+    def execute(language, code, timeout):
+        executions.append((language, code, timeout))
+        return CodeExecutionResult(language, "success", output="verified")
+
+    agent = GTA15Agent(
+        planner,
+        AgentConfig(name="gta15"),
+        FakeGrounder(),
+        coder=CoderAgent(coder_client, CoderConfig()),
+        code_executor=execute,
+    )
+
+    first = agent.predict("Update the file and save", Observation(screenshot=image))
+    assert first.actions == ["WAIT"]
+    assert first.metadata["coder"]["completion_reason"] == "DONE"
+    assert executions[0][0] == "python"
+    assert any(tool["name"] == "call_code_agent" for tool in planner.main_calls[0][1]["tools"])
+
+    agent.on_action_result(first, "WAIT", StepOutcome(Observation(screenshot=image)))
+    second = agent.predict("Update the file and save", Observation(screenshot=image))
+    assert "hotkey" in second.low_level_instruction
+    second_messages = planner.main_calls[-1][0]
+    assert any(
+        message["role"] == "tool"
+        and message["name"] == "call_code_agent"
+        and "Inspect the current desktop" in str(message["content"])
+        for message in second_messages
+    )
+
+
+def test_gta15_without_coder_does_not_expose_coder_tool() -> None:
+    planner = FakeGeminiClient([call("wait", time=1)])
+    gta_agent(planner).predict("Wait", Observation(screenshot=screenshot()))
+    assert not any(
+        tool["name"] == "call_code_agent" for tool in planner.main_calls[0][1]["tools"]
+    )
