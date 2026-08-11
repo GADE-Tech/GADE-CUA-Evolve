@@ -1,0 +1,72 @@
+{
+  "id": "gimp-open-vignette",
+  "instruction": "Help me open up the Vignette filter window.",
+  "frames": [
+    {
+      "step": 0,
+      "image": "initial.webp",
+      "actionType": "initial",
+      "actionLabel": "Initial desktop state"
+    },
+    {
+      "step": 1,
+      "image": "step-01.webp",
+      "actionType": "click",
+      "actionLabel": "Click the 'Keep' button on the 'Convert to RGB Working Space?' dialog",
+      "point": {
+        "x": 0.5791666667,
+        "y": 0.6490740741
+      }
+    },
+    {
+      "step": 2,
+      "image": "step-02.webp",
+      "actionType": "click",
+      "actionLabel": "Click on the 'Filters' menu in GIMP",
+      "point": {
+        "x": 0.2447916667,
+        "y": 0.0712962963
+      }
+    },
+    {
+      "step": 3,
+      "image": "step-03.webp",
+      "actionType": "click",
+      "actionLabel": "Click on 'Light and Shadow' in the Filters menu",
+      "point": {
+        "x": 0.2947916667,
+        "y": 0.2453703704
+      }
+    },
+    {
+      "step": 4,
+      "image": "step-04.webp",
+      "actionType": "click",
+      "actionLabel": "Click on 'Light and Shadow' submenu item in Filters",
+      "point": {
+        "x": 0.2911458333,
+        "y": 0.2462962963
+      }
+    },
+    {
+      "step": 5,
+      "image": "step-05.webp",
+      "actionType": "click",
+      "actionLabel": "Click on 'Vignette...' in the Light and Shadow menu",
+      "point": {
+        "x": 0.4239583333,
+        "y": 0.4425925926
+      }
+    }
+  ],
+  "arm": {
+    "episode": 1,
+    "checklist": [
+      "The GIMP application is running with an active image loaded.",
+      "The Vignette filter window is open and visible on the screen."
+    ],
+    "verdict": "success",
+    "rationale": "The GIMP application is running with an active image loaded, and the Vignette filter window is open and visible on the screen. Both verification checklist items are successfully completed.",
+    "continue": false
+  }
+}

@@ -1,0 +1,29 @@
+llm:
+  provider: openai
+  model: qwen3-vl-plus
+  api_key_env: OPENAI_API_KEY
+  base_url_env: OPENAI_BASE_URL
+  max_tokens: 32768
+  temperature: 0.0
+  top_p: 0.9
+  max_retries: 5
+agent:
+  name: qwen3vl
+  history_n: 4
+  coordinate_type: relative
+  platform: ubuntu
+  image:
+    factor: 32
+    max_pixels: 13107200
+  dump_messages: false
+env:
+  name: noop
+  headless: true
+  screen_size: [1920, 1080]
+  require_a11y_tree: false
+  boot_wait_seconds: 0
+loop:
+  name: react
+  max_steps: 15
+  sleep_after_action: 2.0
+  output_dir: results

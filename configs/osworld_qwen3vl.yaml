@@ -1,0 +1,26 @@
+llm:
+  provider: openai
+  model: qwen3-vl-plus
+  api_key_env: OPENAI_API_KEY
+  base_url_env: OPENAI_BASE_URL
+agent:
+  name: qwen3vl
+  history_n: 4
+  coordinate_type: relative
+env:
+  name: osworld
+  provider_name: vmware
+  path_to_vm: null
+  snapshot_name: init_state
+  action_space: pyautogui
+  headless: true
+  screen_size: [1920, 1080]
+  require_a11y_tree: false
+  boot_wait_seconds: 60
+loop:
+  name: react
+  max_steps: 15
+  sleep_after_action: 2.0
+  settle_seconds: 20
+  output_dir: results
+  record_video: true

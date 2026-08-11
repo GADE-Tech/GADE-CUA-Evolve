@@ -1,40 +1,39 @@
-"""Shared abstractions for LLM clients."""
+"""Provider-neutral multimodal model client contracts."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 
 @dataclass(frozen=True)
-class LLMMessage:
-    """A provider-neutral chat message."""
+class ToolCall:
+    """One provider-neutral function call returned by a model."""
 
-    role: str
-    content: str
-    name: str | None = None
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    id: str
+    name: str
+    arguments: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class LLMResponse:
-    """A provider-neutral model response."""
-
-    content: str
+    text: str
+    reasoning: str | None = None
     model: str | None = None
-    provider: str | None = None
+    tool_calls: Sequence[ToolCall] = field(default_factory=tuple)
     usage: Mapping[str, Any] = field(default_factory=dict)
-    raw_response: Any | None = None
+    raw: Any = None
 
 
-class BaseLLMClient(ABC):
-    """Abstract base class for model providers."""
+class Client(ABC):
+    """Hide provider SDK types behind one synchronous generation interface."""
 
     @abstractmethod
-    def generate(
+    def complete(
         self,
-        messages: Sequence[LLMMessage | Mapping[str, Any]],
-        **kwargs: Any,
+        messages: Sequence[Mapping[str, Any]],
+        **overrides: Any,
     ) -> LLMResponse:
-        """Generate a response for a list of provider-neutral messages."""
+        """Generate one response from provider-neutral chat messages."""
