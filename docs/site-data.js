@@ -8,7 +8,7 @@ window.GADE_SITE_DATA = {
   heroScores: [
     {
       label: "OSWorld 1.0",
-      detail: "Project verified · Gemini 3.1 Pro",
+      detail: "Self-Evolve · Gemini 3.1 Pro",
       value: 79.6,
       precision: 1
     },
@@ -70,63 +70,189 @@ window.GADE_SITE_DATA = {
       matrix: { tp: 101, fn: 0, fp: 28, tn: 23 }
     }
   },
-  trajectory: {
-    id: "gimp-open-vignette",
-    instruction: "Help me open up the Vignette filter window.",
-    frames: [
+  loopDemo: {
+    interval: 2600,
+    phases: [
       {
-        step: 0,
-        image: "assets/trajectories/gimp-open-vignette/initial.webp",
-        actionType: "initial",
-        actionLabel: "Initial desktop state"
+        phase: "TASK",
+        episode: "EPISODE 01",
+        title: "Add a Profit column and calculate Sales − COGS.",
+        detail: "The workbook starts without the requested result.",
+        image: "assets/trajectories/osworld-profit/initial.webp",
+        tone: "actor"
       },
       {
-        step: 1,
-        image: "assets/trajectories/gimp-open-vignette/step-01.webp",
-        actionType: "click",
-        actionLabel: "Keep the image's embedded color profile",
-        point: { x: 0.5791666667, y: 0.6490740741 }
+        phase: "ACTOR · CODE",
+        episode: "EPISODE 01",
+        title: "Write Profit formulas into D1:D11.",
+        detail: "The Planner chooses a coding action; the GUI now looks correct.",
+        image: "assets/trajectories/osworld-profit/profit-added.webp",
+        tone: "actor"
       },
       {
-        step: 2,
-        image: "assets/trajectories/gimp-open-vignette/step-02.webp",
-        actionType: "click",
-        actionLabel: "Open the Filters menu",
-        point: { x: 0.2447916667, y: 0.0712962963 }
+        phase: "ACTOR · DONE",
+        episode: "EPISODE 01",
+        title: "Stop: the requested values are visible.",
+        detail: "The Actor declares success from the current desktop state.",
+        image: "assets/trajectories/osworld-profit/profit-added.webp",
+        tone: "actor"
       },
       {
-        step: 3,
-        image: "assets/trajectories/gimp-open-vignette/step-03.webp",
-        actionType: "click",
-        actionLabel: "Choose Light and Shadow",
-        point: { x: 0.2947916667, y: 0.2453703704 }
+        phase: "ARM · CHECK",
+        episode: "EPISODE 01",
+        title: "Not completed: the saved file still contains null.",
+        detail: "ARM checks persistent evidence, not just the visible spreadsheet.",
+        image: "assets/trajectories/osworld-profit/profit-added.webp",
+        tone: "arm"
       },
       {
-        step: 4,
-        image: "assets/trajectories/gimp-open-vignette/step-04.webp",
-        actionType: "click",
-        actionLabel: "Reveal the Light and Shadow submenu",
-        point: { x: 0.2911458333, y: 0.2462962963 }
+        phase: "FEEDBACK ↺",
+        episode: "STOP → RETRY",
+        title: "The formulas are correct, but the workbook was not saved.",
+        detail: "This evidence is appended to the next Actor episode.",
+        image: "assets/trajectories/osworld-profit/profit-added.webp",
+        tone: "arm"
       },
       {
-        step: 5,
-        image: "assets/trajectories/gimp-open-vignette/step-05.webp",
-        actionType: "click",
-        actionLabel: "Open the Vignette filter window",
-        point: { x: 0.4239583333, y: 0.4425925926 }
+        phase: "ACTOR · HOTKEY",
+        episode: "EPISODE 02",
+        title: "Apply feedback: press Ctrl + S.",
+        detail: "The next episode performs only the missing action.",
+        image: "assets/trajectories/osworld-profit/saved.webp",
+        tone: "actor"
+      },
+      {
+        phase: "STOP · SUCCESS",
+        episode: "EPISODE 02",
+        title: "Saved workbook verified. End the loop.",
+        detail: "The native evaluator returns 1.0.",
+        image: "assets/trajectories/osworld-profit/saved.webp",
+        tone: "success"
       }
-    ],
-    arm: {
-      episode: 1,
-      checklist: [
-        "GIMP is running with an active image loaded.",
-        "The Vignette filter window is open and visible."
-      ],
-      verdict: "success",
-      rationale: "The active image and the Vignette filter window are both visible in the final desktop state.",
-      continue: false
-    }
+    ]
   },
+  trajectories: [
+    {
+      id: "osworld-profit",
+      tabLabel: "Profit column",
+      environment: "OSWorld · Ubuntu · Calc",
+      title: "Add and save a Profit column.",
+      instruction: "Add a new column named ‘Profit’ next to ‘COGS’ and calculate Sales minus COGS for every week.",
+      taskId: "1e8df695-bd1b-45b3-b557-e7d599cf7597",
+      frames: [
+        {
+          image: "assets/trajectories/osworld-profit/initial.webp",
+          episode: 1,
+          actionType: "task",
+          actionLabel: "WeeklySales.xlsx opens with Week, Sales, and COGS columns."
+        },
+        {
+          image: "assets/trajectories/osworld-profit/profit-added.webp",
+          episode: 1,
+          actionType: "code",
+          actionLabel: "Actor writes the Profit header and formulas into D1:D11."
+        },
+        {
+          image: "assets/trajectories/osworld-profit/profit-added.webp",
+          episode: 1,
+          actionType: "done",
+          actionLabel: "Actor returns DONE because every requested value is visible."
+        },
+        {
+          image: "assets/trajectories/osworld-profit/profit-added.webp",
+          episode: 1,
+          actionType: "arm",
+          actionLabel: "ARM inspects the persisted workbook and finds the Profit cells are null.",
+          arm: {
+            verdict: "NOT COMPLETED",
+            tone: "retry",
+            checklist: ["D1 is exactly ‘Profit’.", "D2:D11 contain Sales − COGS."],
+            rationale: "The GUI is correct, but the changes were never saved to WeeklySales.xlsx.",
+            next: "RETRY WITH FEEDBACK"
+          }
+        },
+        {
+          image: "assets/trajectories/osworld-profit/saved.webp",
+          episode: 2,
+          actionType: "hotkey",
+          actionLabel: "Episode 2 follows ARM feedback and presses Ctrl + S."
+        },
+        {
+          image: "assets/trajectories/osworld-profit/saved.webp",
+          episode: 2,
+          actionType: "success",
+          actionLabel: "The saved workbook passes the native evaluator with a 1.0 score.",
+          arm: {
+            verdict: "SUCCESS",
+            tone: "success",
+            checklist: ["Profit formulas are present.", "The workbook changes persist on disk."],
+            rationale: "The missing save action was corrected in the feedback episode.",
+            next: "STOP"
+          }
+        }
+      ]
+    },
+    {
+      id: "waa-center-heading",
+      tabLabel: "Center heading",
+      environment: "Windows Agent Arena · Windows · Writer",
+      title: "Center-align a document heading.",
+      instruction: "Help me center align the heading in LibreOffice.",
+      taskId: "3ef2b351-8a84-4ff2-8724-d86eae9b842e-WOS",
+      frames: [
+        {
+          image: "assets/trajectories/waa-center-heading/initial.webp",
+          episode: 1,
+          actionType: "task",
+          actionLabel: "Actor scrolls to the heading and places the cursor in it."
+        },
+        {
+          image: "assets/trajectories/waa-center-heading/right-aligned.webp",
+          episode: 1,
+          actionType: "click",
+          actionLabel: "Grounding misses the center icon and clicks Align Right."
+        },
+        {
+          image: "assets/trajectories/waa-center-heading/right-aligned.webp",
+          episode: 1,
+          actionType: "done",
+          actionLabel: "Actor saves the document and incorrectly returns DONE."
+        },
+        {
+          image: "assets/trajectories/waa-center-heading/right-aligned.webp",
+          episode: 1,
+          actionType: "arm",
+          actionLabel: "ARM reads the saved paragraph alignment as RIGHT (2).",
+          arm: {
+            verdict: "NOT COMPLETED",
+            tone: "retry",
+            checklist: ["A LibreOffice document is open.", "The heading is center-aligned."],
+            rationale: "The right-align toolbar button is active and the saved file confirms RIGHT alignment.",
+            next: "RETRY WITH FEEDBACK"
+          }
+        },
+        {
+          image: "assets/trajectories/waa-center-heading/centered.webp",
+          episode: 2,
+          actionType: "hotkey",
+          actionLabel: "Episode 2 uses Ctrl + E to center the heading, then saves."
+        },
+        {
+          image: "assets/trajectories/waa-center-heading/centered.webp",
+          episode: 2,
+          actionType: "success",
+          actionLabel: "The centered heading persists and the task receives a 1.0 score.",
+          arm: {
+            verdict: "SUCCESS",
+            tone: "success",
+            checklist: ["The document remains open.", "The saved heading is center-aligned."],
+            rationale: "ARM feedback changed the next action from imprecise clicking to an exact shortcut.",
+            next: "STOP"
+          }
+        }
+      ]
+    }
+  ],
   sources: {
     experiment: "Project Q2 experiment summary · 2026",
     disclaimer: "Project experiment results. Not a claim about a live official leaderboard."

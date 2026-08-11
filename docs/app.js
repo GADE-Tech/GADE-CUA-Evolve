@@ -154,7 +154,7 @@
       line: css.getPropertyValue("--line").trim(),
       ink: css.getPropertyValue("--ink").trim(),
       muted: css.getPropertyValue("--muted").trim(),
-      arm: css.getPropertyValue("--coral").trim(),
+      arm: css.getPropertyValue("--violet").trim(),
       wide: css.getPropertyValue("--blue").trim()
     };
 
@@ -226,34 +226,140 @@
       </details>`).join("");
   }
 
+  const assetUrl = (path) => new URL(path, document.baseURI).href;
+
+  function buildLoopDemo() {
+    const demo = document.querySelector("#loopDemo");
+    if (!demo || !data.loopDemo?.phases?.length) return;
+    const phases = data.loopDemo.phases;
+    const image = document.querySelector("#loopImage");
+    const event = document.querySelector("#loopEvent");
+    const phaseLabel = document.querySelector("#loopPhase");
+    const title = document.querySelector("#loopTitle");
+    const detail = document.querySelector("#loopDetail");
+    const episode = document.querySelector("#loopEpisode");
+    const rail = document.querySelector("#loopRail");
+    const toggle = document.querySelector("#loopToggle");
+    let index = 0;
+    let timer = null;
+    let playing = false;
+
+    phases.forEach((phase, phaseIndex) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-label", `Show ${phase.phase}: ${phase.title}`);
+      button.addEventListener("click", () => {
+        pause();
+        index = phaseIndex;
+        render();
+      });
+      rail.appendChild(button);
+    });
+
+    function render() {
+      const current = phases[index];
+      demo.classList.add("is-changing");
+      window.setTimeout(() => {
+        const nextUrl = assetUrl(current.image);
+        if (image.src !== nextUrl) image.src = nextUrl;
+        image.alt = `${current.phase}: ${current.title}`;
+        event.dataset.tone = current.tone;
+        phaseLabel.textContent = current.phase;
+        title.textContent = current.title;
+        detail.textContent = current.detail;
+        episode.textContent = current.episode;
+        [...rail.children].forEach((button, buttonIndex) => {
+          button.classList.toggle("active", buttonIndex === index && playing);
+          button.classList.toggle("complete", buttonIndex < index || (buttonIndex === index && !playing));
+        });
+        demo.classList.remove("is-changing");
+      }, reducedMotion ? 0 : 120);
+    }
+
+    function play() {
+      if (playing) return;
+      playing = true;
+      toggle.textContent = "Pause";
+      toggle.setAttribute("aria-label", "Pause self-evolve example");
+      render();
+      timer = window.setInterval(() => {
+        index = (index + 1) % phases.length;
+        render();
+      }, data.loopDemo.interval);
+    }
+
+    function pause() {
+      window.clearInterval(timer);
+      timer = null;
+      playing = false;
+      toggle.textContent = "Play";
+      toggle.setAttribute("aria-label", "Play self-evolve example");
+      render();
+    }
+
+    toggle.addEventListener("click", () => playing ? pause() : play());
+    phases.forEach((phase) => {
+      const candidate = new Image();
+      candidate.src = assetUrl(phase.image);
+    });
+    render();
+
+    if (reducedMotion) return;
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting);
+        if (visible && !playing) play();
+        if (!visible && playing) pause();
+      }, { threshold: 0.2 });
+      observer.observe(demo);
+    } else {
+      play();
+    }
+  }
+
   function buildTrajectory() {
-    const trajectory = data.trajectory;
-    const frames = trajectory.frames;
+    const trajectories = data.trajectories;
+    if (!Array.isArray(trajectories) || trajectories.length === 0) return;
     const player = document.querySelector("#trajectoryPlayer");
     const image = document.querySelector("#trajectoryImage");
+    const imageError = document.querySelector("#trajectoryImageError");
     const marker = document.querySelector("#clickMarker");
     const stepText = document.querySelector("#screenStep");
+    const environment = document.querySelector("#trajectoryEnvironment");
+    const title = document.querySelector("#trajectoryTitle");
+    const instruction = document.querySelector("#trajectoryInstruction");
     const actionType = document.querySelector("#actionType");
     const actionLabel = document.querySelector("#actionLabel");
+    const armVerdict = document.querySelector("#armVerdict");
     const range = document.querySelector("#trajectoryRange");
     const play = document.querySelector("#playTrajectory");
     const previous = document.querySelector("#previousStep");
     const next = document.querySelector("#nextStep");
     const speed = document.querySelector("#trajectorySpeed");
     const timeline = document.querySelector("#trajectoryTimeline");
+    const tabs = document.querySelector("#caseTabs");
+    let trajectory = trajectories[0];
+    let frames = trajectory.frames;
     let index = 0;
     let timer = null;
-    let preloaded = new Set([frames[0].image]);
+    let preloaded = new Set();
 
-    document.querySelector("#trajectoryInstruction").textContent = `“${trajectory.instruction}”`;
-    document.querySelector("#armChecklist").innerHTML = trajectory.arm.checklist.map((item) => `<li>${item}</li>`).join("");
-    document.querySelector("#armRationale").textContent = trajectory.arm.rationale;
+    image.addEventListener("load", () => {
+      image.hidden = false;
+      imageError.hidden = true;
+      image.dataset.failed = "";
+    });
+    image.addEventListener("error", () => {
+      image.hidden = true;
+      imageError.hidden = false;
+      image.dataset.failed = image.src;
+    });
 
     function preload(frameIndex) {
       const frame = frames[frameIndex];
       if (!frame || preloaded.has(frame.image)) return;
       const candidate = new Image();
-      candidate.src = frame.image;
+      candidate.src = assetUrl(frame.image);
       preloaded.add(frame.image);
     }
 
@@ -266,10 +372,15 @@
 
     function render({ preloadAdjacent = true } = {}) {
       const frame = frames[index];
-      if (!image.getAttribute("src").endsWith(frame.image)) image.src = frame.image;
-      image.alt = `GIMP trajectory step ${frame.step}: ${frame.actionLabel}`;
-      stepText.textContent = `STEP ${String(frame.step).padStart(2, "0")} / 05`;
-      actionType.textContent = frame.actionType === "initial" ? "INITIAL STATE" : `${frame.actionType.toUpperCase()} ACTION`;
+      const nextUrl = assetUrl(frame.image);
+      if (image.src !== nextUrl || image.dataset.failed === nextUrl) {
+        image.hidden = false;
+        imageError.hidden = true;
+        image.src = nextUrl;
+      }
+      image.alt = `${trajectory.environment} step ${index + 1}: ${frame.actionLabel}`;
+      stepText.textContent = `STEP ${String(index + 1).padStart(2, "0")} / ${String(frames.length).padStart(2, "0")} · EPISODE ${String(frame.episode).padStart(2, "0")}`;
+      actionType.textContent = frame.actionType === "task" ? "INITIAL STATE" : `${frame.actionType.toUpperCase()} ACTION`;
       actionLabel.textContent = frame.actionLabel;
       range.value = String(index);
       previous.disabled = index === 0;
@@ -282,21 +393,66 @@
       } else {
         marker.hidden = true;
       }
+      if (frame.arm) {
+        armVerdict.hidden = false;
+        armVerdict.className = `arm-verdict ${frame.arm.tone === "retry" ? "retry" : ""}`.trim();
+        armVerdict.innerHTML = `
+          <div class="verdict-top"><span>ARM CHECKPOINT · EPISODE ${String(frame.episode).padStart(2, "0")}</span><b>${frame.arm.verdict}</b></div>
+          <ul>${frame.arm.checklist.map((item) => `<li>${item}</li>`).join("")}</ul>
+          <p>${frame.arm.rationale}</p>
+          <small>NEXT · ${frame.arm.next}</small>`;
+      } else {
+        armVerdict.hidden = true;
+        armVerdict.innerHTML = "";
+      }
       if (preloadAdjacent) preload(index + 1);
     }
 
-    frames.forEach((frame, frameIndex) => {
+    function rebuildTimeline() {
+      timeline.innerHTML = "";
+      timeline.style.setProperty("--timeline-count", frames.length);
+      frames.forEach((frame, frameIndex) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = frame.arm ? "checkpoint" : "";
+        button.setAttribute("aria-label", `Show trajectory step ${frameIndex + 1}: ${frame.actionLabel}`);
+        button.innerHTML = `<span>${String(frameIndex + 1).padStart(2, "0")} · E${frame.episode}</span><small>${frame.actionLabel}</small>`;
+        button.addEventListener("click", () => {
+          stop();
+          index = frameIndex;
+          render();
+        });
+        timeline.appendChild(button);
+      });
+    }
+
+    function loadTrajectory(caseIndex) {
+      stop();
+      trajectory = trajectories[caseIndex];
+      frames = trajectory.frames;
+      index = 0;
+      preloaded = new Set();
+      environment.textContent = trajectory.environment.toUpperCase();
+      title.textContent = trajectory.title;
+      instruction.textContent = `“${trajectory.instruction}”`;
+      range.max = String(frames.length - 1);
+      [...tabs.children].forEach((button, buttonIndex) => {
+        const selected = buttonIndex === caseIndex;
+        button.setAttribute("aria-selected", String(selected));
+        button.tabIndex = selected ? 0 : -1;
+      });
+      rebuildTimeline();
+      render();
+      preload(1);
+    }
+
+    trajectories.forEach((item, caseIndex) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = frameIndex === frames.length - 1 ? "checkpoint" : "";
-      button.setAttribute("aria-label", `Show trajectory step ${frameIndex}`);
-      button.innerHTML = `<span>${String(frame.step).padStart(2, "0")}</span><small>${frame.actionType === "initial" ? "Initial state" : frame.actionLabel}</small>`;
-      button.addEventListener("click", () => {
-        stop();
-        index = frameIndex;
-        render();
-      });
-      timeline.appendChild(button);
+      button.setAttribute("role", "tab");
+      button.innerHTML = `<span>${item.tabLabel}</span><small>${item.environment}</small>`;
+      button.addEventListener("click", () => loadTrajectory(caseIndex));
+      tabs.appendChild(button);
     });
 
     function move(delta) {
@@ -358,12 +514,13 @@
       }, { rootMargin: "120px" });
       trajectoryObserver.observe(player);
     }
-    render({ preloadAdjacent: false });
+    loadTrajectory(0);
   }
 
   renderHeroScores();
   renderResults();
   renderDiagnostics();
+  buildLoopDemo();
   buildTrajectory();
   document.querySelector("#footerAuthor").textContent = data.project.author;
   drawScalingChart();
