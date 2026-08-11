@@ -2,23 +2,32 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from gade_cua_evolve.config import LLMConfig, resolve_env
 
-from .base import BaseLLMClient
+from .base import Client
 
 
-def create_llm_client(config: Mapping[str, Any]) -> BaseLLMClient:
-    """Create an LLM client using the provider field from a config mapping."""
-    provider = str(config.get("provider", "")).lower()
-    kwargs = {key: value for key, value in config.items() if key != "provider"}
+def build_llm_client(config: LLMConfig) -> Client:
+    kwargs = {
+        "model": resolve_env(config.model_env) or config.model,
+        "api_key": resolve_env(config.api_key_env, required=True),
+        "temperature": config.temperature,
+        "top_p": config.top_p,
+        "max_tokens": config.max_tokens,
+        "max_retries": config.max_retries,
+        **config.extra,
+    }
 
-    if provider == "openai":
-        from .openai_client import OpenAILLMClient
+    if config.provider == "openai":
+        from .openai_client import OpenAICompatClient
 
-        return OpenAILLMClient(**kwargs)
-    if provider == "google":
-        from .google_client import GoogleLLMClient
+        return OpenAICompatClient(
+            base_url=config.base_url or resolve_env(config.base_url_env),
+            **kwargs,
+        )
+    if config.provider == "google":
+        from .google_client import GoogleGenAIClient
 
-        return GoogleLLMClient(**kwargs)
+        return GoogleGenAIClient(**kwargs)
 
-    raise ValueError(f"Unsupported LLM provider: {provider!r}")
+    raise ValueError(f"Unsupported LLM provider: {config.provider!r}")

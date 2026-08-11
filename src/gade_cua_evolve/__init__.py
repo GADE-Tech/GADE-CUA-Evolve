@@ -1,11 +1,7 @@
-"""GADE CUA Evolve package."""
+"""Composable computer-use agent runtime."""
 
-__all__ = ["RunConfig", "dry_run_task", "load_config", "run_task"]
+__version__ = "0.1.0"
 
+from .config import RunConfig, load_config
 
-def __getattr__(name: str):
-    if name in __all__:
-        from . import cli
-
-        return getattr(cli, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__all__ = ["RunConfig", "__version__", "load_config"]

@@ -1,6 +1,6 @@
-"""Provider-neutral LLM client abstractions and factories."""
+"""Provider-neutral LLM abstractions."""
 
-from .base import BaseLLMClient, LLMMessage, LLMResponse
-from .factory import create_llm_client
+from .base import Client, LLMResponse, ToolCall
+from .factory import build_llm_client
 
-__all__ = ["BaseLLMClient", "LLMMessage", "LLMResponse", "create_llm_client"]
+__all__ = ["Client", "LLMResponse", "ToolCall", "build_llm_client"]

@@ -1,235 +1,333 @@
-"""Command line interface and small Python API for GADE CUA Evolve."""
+"""Typer command line interface."""
 
 from __future__ import annotations
 
-import argparse
 import json
-from dataclasses import dataclass
+import os
+import re
+from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Annotated
+
+import typer
+
+from .batch import BatchOptions, run_batch
+from .config import RunConfig, TaskSpec, load_config
+from .controller import RunController
+from .logging_utils import configure_logging
+from .registry import AGENTS, ENVS, LOOPS, build_components
+from .trajectory import TrajectoryRecorder
+
+app = typer.Typer(help="Run composable computer-use agents.")
+config_app = typer.Typer(help="Inspect configuration.")
+env_app = typer.Typer(help="Inspect environments.")
+app.add_typer(config_app, name="config")
+app.add_typer(env_app, name="env")
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OSWORLD_ROOT = Path("/Users/bofeizhang/Documents/GADE Projects/OSWorld")
+ENV_PROFILES = {
+    "osworldv1": REPOSITORY_ROOT / "configs" / "volcengine_gta15_gemini.yaml",
+}
+TASK_REF_PATTERN = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9_-]+$")
 
 
-@dataclass(frozen=True)
-class RunConfig:
-    """Configuration used by a GADE CUA run."""
+def run_task(
+    task: TaskSpec,
+    config: RunConfig,
+    *,
+    arm_enabled: bool = False,
+    evaluate: bool = False,
+    controller: RunController | None = None,
+):
+    if evaluate and not task.has_native_evaluator:
+        raise typer.BadParameter("--evaluate requires an OSWorld task with a native evaluator")
+    recorder = TrajectoryRecorder(config.loop.output_dir, task, config)
+    _, _, loop = build_components(
+        config,
+        recorder,
+        controller=controller,
+        arm_enabled=arm_enabled,
+        evaluate_at_end=evaluate,
+    )
+    return loop.run(task)
 
-    llm_provider: str = "openai"
-    model_name: str = "gpt-example"
-    computer_provider: str = "local_stub"
-    max_steps: int = 10
-    trajectory_output_dir: str = "trajectories"
 
-    @classmethod
-    def from_mapping(cls, data: Mapping[str, Any]) -> "RunConfig":
-        """Build a config from flat or nested YAML/JSON data."""
+def load_task(path: Path) -> TaskSpec:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise TypeError("Task file must contain a JSON object")
+    if "raw" in data:
+        return TaskSpec.model_validate(data)
+    task_id = str(data.pop("id", "task"))
+    instruction = str(data.pop("instruction"))
+    return TaskSpec(id=task_id, instruction=instruction, raw=data)
 
-        llm = _mapping_value(data, "llm", {})
-        computer = _mapping_value(data, "computer", {})
-        trajectory = _mapping_value(data, "trajectory", {})
 
-        return cls(
-            llm_provider=str(
-                _first_present(data, ["llm_provider", "provider"], _mapping_value(llm, "provider", cls.llm_provider))
-            ),
-            model_name=str(
-                _first_present(data, ["model_name", "model"], _mapping_value(llm, "model", cls.model_name))
-            ),
-            computer_provider=str(
-                _first_present(
-                    data,
-                    ["computer_provider"],
-                    _mapping_value(computer, "provider", cls.computer_provider),
-                )
-            ),
-            max_steps=int(
-                _first_present(data, ["max_steps"], _mapping_value(data, "maxSteps", cls.max_steps))
-            ),
-            trajectory_output_dir=str(
-                _first_present(
-                    data,
-                    ["trajectory_output_dir", "trajectory_dir"],
-                    _mapping_value(trajectory, "output_dir", cls.trajectory_output_dir),
-                )
-            ),
+def resolve_env_profile(name_or_path: str) -> Path:
+    path = ENV_PROFILES.get(name_or_path, Path(name_or_path))
+    if not path.is_file():
+        choices = ", ".join(sorted(ENV_PROFILES))
+        raise typer.BadParameter(
+            f"Unknown environment profile {name_or_path!r}; known profiles: {choices}"
         )
+    return path
 
 
-def load_config(path: str | Path | None = None) -> RunConfig:
-    """Load a run config from YAML or JSON, returning defaults when omitted."""
-
-    if path is None:
-        return RunConfig()
-
-    config_path = Path(path)
-    if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
-
-    raw_text = config_path.read_text(encoding="utf-8")
-    if config_path.suffix.lower() == ".json":
-        raw_data = json.loads(raw_text)
-    elif config_path.suffix.lower() in {".yaml", ".yml"}:
-        raw_data = _load_yaml(raw_text)
-    else:
-        raise ValueError("Config file must use .yaml, .yml, or .json")
-
-    if raw_data is None:
-        raw_data = {}
-    if not isinstance(raw_data, Mapping):
-        raise ValueError("Config file must contain a YAML/JSON object")
-    return RunConfig.from_mapping(raw_data)
+def resolve_osworld_task(task_ref: str, osworld_root: Path | None = None) -> Path:
+    if not TASK_REF_PATTERN.fullmatch(task_ref):
+        raise typer.BadParameter("Task must use domain/task_id syntax")
+    domain, task_id = task_ref.split("/", 1)
+    root = osworld_root or Path(os.getenv("OSWORLD_ROOT", DEFAULT_OSWORLD_ROOT))
+    path = root / "evaluation_examples" / "examples" / domain / f"{task_id}.json"
+    if not path.is_file():
+        raise typer.BadParameter(f"OSWorld task does not exist: {task_ref}")
+    return path
 
 
-def run_task(task: str, config: RunConfig | Mapping[str, Any] | None = None) -> dict[str, Any]:
-    """Run a task through the configured providers.
-
-    The current implementation is intentionally lightweight and returns a
-    structured run summary. Provider-specific execution can be wired in behind
-    this function without changing CLI or example code.
-    """
-
-    run_config = _coerce_config(config)
-    Path(run_config.trajectory_output_dir).mkdir(parents=True, exist_ok=True)
-    result = {
-        "mode": "run",
-        "task": task,
-        "llm_provider": run_config.llm_provider,
-        "model_name": run_config.model_name,
-        "computer_provider": run_config.computer_provider,
-        "max_steps": run_config.max_steps,
-        "trajectory_output_dir": run_config.trajectory_output_dir,
-        "status": "ready",
-    }
-    print(json.dumps(result, indent=2))
-    return result
-
-
-def dry_run_task(task: str, config: RunConfig | Mapping[str, Any] | None = None) -> dict[str, Any]:
-    """Validate a task and config without creating trajectory output."""
-
-    run_config = _coerce_config(config)
-    result = {
-        "mode": "dry-run",
-        "task": task,
-        "llm_provider": run_config.llm_provider,
-        "model_name": run_config.model_name,
-        "computer_provider": run_config.computer_provider,
-        "max_steps": run_config.max_steps,
-        "trajectory_output_dir": run_config.trajectory_output_dir,
-        "status": "validated",
-    }
-    print(json.dumps(result, indent=2))
-    return result
+def run_task_reference(
+    env_name: str,
+    task_ref: str,
+    *,
+    overrides: list[str] | None = None,
+    output_dir: Path | None = None,
+    verbose: bool = False,
+    arm_enabled: bool = False,
+    evaluate: bool = False,
+) -> None:
+    configure_logging(verbose)
+    config_path = resolve_env_profile(env_name)
+    domain, _ = task_ref.split("/", 1)
+    effective_overrides = list(overrides or [])
+    result_root = output_dir or Path("results") / env_name / domain
+    effective_overrides.append(f"loop.output_dir={json.dumps(str(result_root))}")
+    config = load_config(config_path, effective_overrides)
+    task = load_task(resolve_osworld_task(task_ref))
+    result = run_task(task, config, arm_enabled=arm_enabled, evaluate=evaluate)
+    payload = asdict(result)
+    payload["task"] = result.task.model_dump(mode="json")
+    typer.echo(json.dumps(payload, default=str, indent=2))
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Create the gade-cua argument parser."""
+@app.callback(invoke_without_command=True)
+def main(
+    context: typer.Context,
+    env_name: Annotated[str | None, typer.Option("--env", help="Environment profile.")] = None,
+    task_ref: Annotated[
+        str | None, typer.Option("--task", help="OSWorld task as domain/task_id.")
+    ] = None,
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/volcengine_gta15_gemini.yaml"
+    ),
+    arm_enabled: Annotated[bool, typer.Option("--arm", help="Enable ARM feedback.")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate", help="Run native evaluator.")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    """Launch the TUI, or run a benchmark task when --env and --task are supplied."""
+    if context.invoked_subcommand is not None:
+        return
+    if env_name is None:
+        configure_logging(verbose)
+        from .tui import run_tui
 
-    parser = argparse.ArgumentParser(prog="gade-cua", description="Run GADE CUA Evolve tasks.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    run_parser = subparsers.add_parser("run", help="Run a task.")
-    run_parser.add_argument("--task", required=True, help="Natural-language task to execute.")
-    run_parser.add_argument("--config", help="Path to a YAML or JSON config file.")
-
-    dry_run_parser = subparsers.add_parser("dry-run", help="Validate a task without executing it.")
-    dry_run_parser.add_argument("--task", required=True, help="Natural-language task to validate.")
-    dry_run_parser.add_argument("--config", help="Optional path to a YAML or JSON config file.")
-
-    return parser
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    """Entrypoint for the gade-cua console script."""
-
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    config = load_config(args.config)
-
-    if args.command == "run":
-        run_task(args.task, config)
-    elif args.command == "dry-run":
-        dry_run_task(args.task, config)
-    else:  # pragma: no cover - argparse prevents this branch.
-        parser.error(f"Unknown command: {args.command}")
-    return 0
+        effective_overrides = list(overrides or [])
+        if output_dir:
+            effective_overrides.append(f"loop.output_dir={json.dumps(str(output_dir))}")
+        initial_task = load_task(resolve_osworld_task(task_ref)) if task_ref else None
+        run_tui(
+            load_config(config_path, effective_overrides),
+            arm_enabled=arm_enabled,
+            task=initial_task,
+        )
+        return
+    if not task_ref:
+        raise typer.BadParameter("Provide both --env and --task")
+    run_task_reference(
+        env_name,
+        task_ref,
+        overrides=overrides,
+        output_dir=output_dir,
+        verbose=verbose,
+        arm_enabled=arm_enabled,
+        evaluate=evaluate,
+    )
 
 
-def _load_yaml(raw_text: str) -> Any:
+@app.command("exec")
+def exec_command(
+    prompt: Annotated[str | None, typer.Argument(help="Free-form desktop task prompt.")] = None,
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/volcengine_gta15_gemini.yaml"
+    ),
+    env_name: Annotated[str | None, typer.Option("--env")] = None,
+    task_ref: Annotated[str | None, typer.Option("--task")] = None,
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    """Execute a free-form prompt or an OSWorld task without the TUI."""
+    benchmark_mode = bool(env_name or task_ref)
+    if bool(prompt) == benchmark_mode:
+        raise typer.BadParameter("Provide either PROMPT or both --env and --task")
+    if benchmark_mode:
+        if not env_name or not task_ref:
+            raise typer.BadParameter("Provide both --env and --task")
+        run_task_reference(
+            env_name,
+            task_ref,
+            overrides=overrides,
+            output_dir=output_dir,
+            verbose=verbose,
+            arm_enabled=arm_enabled,
+            evaluate=evaluate,
+        )
+        return
+    configure_logging(verbose)
+    effective_overrides = list(overrides or [])
+    if output_dir:
+        effective_overrides.append(f"loop.output_dir={json.dumps(str(output_dir))}")
+    config = load_config(config_path, effective_overrides)
+    result = run_task(
+        TaskSpec(instruction=prompt or ""),
+        config,
+        arm_enabled=arm_enabled,
+        evaluate=evaluate,
+    )
+    payload = asdict(result)
+    payload["task"] = result.task.model_dump(mode="json")
+    typer.echo(json.dumps(payload, default=str, indent=2))
+
+
+@app.command("batch")
+def batch_command(
+    manifest: Annotated[
+        Path | None,
+        typer.Option("--manifest", help="OSWorld domain-to-task manifest JSON."),
+    ] = None,
+    config_path: Annotated[
+        Path | None,
+        typer.Option("--config", exists=True, help="Run configuration; overrides --env."),
+    ] = None,
+    env_name: Annotated[str, typer.Option("--env", help="Environment profile.")] = "osworldv1",
+    output_dir: Annotated[Path | None, typer.Option("--output-dir")] = None,
+    domains: Annotated[
+        list[str] | None,
+        typer.Option("--domain", help="Domain or comma-separated domains; repeatable."),
+    ] = None,
+    limit: Annotated[int | None, typer.Option("--limit", min=1)] = None,
+    workers: Annotated[int, typer.Option("--workers", min=1)] = 1,
+    resume: Annotated[bool, typer.Option("--resume/--no-resume")] = True,
+    shard_index: Annotated[int, typer.Option("--shard-index", min=0)] = 0,
+    num_shards: Annotated[int, typer.Option("--num-shards", min=1)] = 1,
+    infra_retries: Annotated[int, typer.Option("--infra-retries", min=0)] = 1,
+    task_timeout: Annotated[
+        float,
+        typer.Option("--task-timeout", min=0, help="Seconds; 0 disables the timeout."),
+    ] = 0,
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    """Run an OSWorld manifest with process isolation, resume, and aggregation."""
+    osworld_root = Path(os.getenv("OSWORLD_ROOT", DEFAULT_OSWORLD_ROOT)).resolve()
+    manifest_path = manifest or osworld_root / "evaluation_examples" / "test_nogdrive.json"
+    if not manifest_path.is_file():
+        raise typer.BadParameter(f"Batch manifest does not exist: {manifest_path}")
+    selected_config = config_path or resolve_env_profile(env_name)
+    suffix = "arm" if arm_enabled else "baseline"
+    selected_output = output_dir or Path("results") / "batch" / f"{manifest_path.stem}-{suffix}"
     try:
-        import yaml
-    except ImportError:
-        return _load_simple_yaml(raw_text)
-    return yaml.safe_load(raw_text)
+        summary = run_batch(
+            BatchOptions(
+                manifest=manifest_path,
+                config=selected_config,
+                osworld_root=osworld_root,
+                output_dir=selected_output,
+                domains=tuple(domains or ()),
+                limit=limit,
+                workers=workers,
+                resume=resume,
+                shard_index=shard_index,
+                num_shards=num_shards,
+                infra_retries=infra_retries,
+                task_timeout=task_timeout or None,
+                arm=arm_enabled,
+                evaluate=evaluate,
+                overrides=tuple(overrides or ()),
+                verbose=verbose,
+                workdir=REPOSITORY_ROOT,
+            )
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(json.dumps(asdict(summary), indent=2))
+    if summary.infra_failed:
+        raise typer.Exit(code=1)
 
 
-def _load_simple_yaml(raw_text: str) -> dict[str, Any]:
-    """Parse the simple nested key/value YAML used by example configs.
-
-    PyYAML remains the recommended parser and is declared as a dependency, but
-    this fallback keeps JSON configs and basic YAML configs usable in minimal
-    source-checkout environments.
-    """
-
-    root: dict[str, Any] = {}
-    stack: list[tuple[int, dict[str, Any]]] = [(-1, root)]
-    for line_number, raw_line in enumerate(raw_text.splitlines(), start=1):
-        line = raw_line.split("#", 1)[0].rstrip()
-        if not line.strip():
-            continue
-        indent = len(line) - len(line.lstrip(" "))
-        stripped = line.strip()
-        if ":" not in stripped:
-            raise ValueError(f"Unsupported YAML syntax on line {line_number}: {raw_line}")
-        key, value = stripped.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        while stack and indent <= stack[-1][0]:
-            stack.pop()
-        current = stack[-1][1]
-        if not value:
-            nested: dict[str, Any] = {}
-            current[key] = nested
-            stack.append((indent, nested))
-        else:
-            current[key] = _parse_scalar(value)
-    return root
+@app.command("run")
+def run_command(
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/default.yaml"
+    ),
+    instruction: Annotated[str | None, typer.Option("--instruction")] = None,
+    task_file: Annotated[Path | None, typer.Option("--task-file", exists=True)] = None,
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+    arm_enabled: Annotated[bool, typer.Option("--arm")] = False,
+    evaluate: Annotated[bool, typer.Option("--evaluate")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose")] = False,
+) -> None:
+    if bool(instruction) == bool(task_file):
+        raise typer.BadParameter("Provide exactly one of --instruction or --task-file")
+    configure_logging(verbose)
+    config = load_config(config_path, overrides)
+    task = TaskSpec(instruction=instruction or "") if instruction else load_task(task_file)
+    result = run_task(task, config, arm_enabled=arm_enabled, evaluate=evaluate)
+    payload = asdict(result)
+    payload["task"] = result.task.model_dump(mode="json")
+    typer.echo(json.dumps(payload, default=str, indent=2))
 
 
-def _parse_scalar(value: str) -> Any:
-    if value in {"true", "True"}:
-        return True
-    if value in {"false", "False"}:
-        return False
-    if value in {"null", "None", "~"}:
-        return None
-    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
-        return value[1:-1]
+@config_app.command("show")
+def config_show(
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/default.yaml"
+    ),
+    overrides: Annotated[list[str] | None, typer.Option("--set")] = None,
+) -> None:
+    typer.echo(load_config(config_path, overrides).model_dump_json(indent=2))
+
+
+@env_app.command("probe")
+def env_probe(
+    config_path: Annotated[Path, typer.Option("--config", exists=True)] = Path(
+        "configs/default.yaml"
+    ),
+    output: Annotated[Path, typer.Option("--output")] = Path("probe.png"),
+) -> None:
+    config = load_config(config_path)
+    env = ENVS[config.env.name](config.env)
     try:
-        return int(value)
-    except ValueError:
-        return value
+        observation = env.observe()
+        if observation.screenshot:
+            output.write_bytes(observation.screenshot)
+            typer.echo(str(output))
+    finally:
+        env.close()
 
 
-def _coerce_config(config: RunConfig | Mapping[str, Any] | None) -> RunConfig:
-    if config is None:
-        return RunConfig()
-    if isinstance(config, RunConfig):
-        return config
-    return RunConfig.from_mapping(config)
-
-
-def _mapping_value(data: Any, key: str, default: Any) -> Any:
-    if isinstance(data, Mapping):
-        return data.get(key, default)
-    return default
-
-
-def _first_present(data: Mapping[str, Any], keys: Sequence[str], default: Any) -> Any:
-    for key in keys:
-        if key in data:
-            return data[key]
-    return default
+@app.command("list")
+def list_components(kind: Annotated[str, typer.Argument(help="agents, envs, or loops")]) -> None:
+    registries = {"agents": AGENTS, "envs": ENVS, "loops": LOOPS}
+    if kind not in registries:
+        raise typer.BadParameter("kind must be agents, envs, or loops")
+    typer.echo("\n".join(sorted(registries[kind])))
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    app()
