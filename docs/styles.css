@@ -154,7 +154,7 @@ button, a, summary, input, select { -webkit-tap-highlight-color: transparent; }
   letter-spacing: -0.062em;
   text-wrap: balance;
 }
-.hero h1 em, .section-heading h2 em, footer h2 em, .scaling-card h3 em {
+.hero h1 em, .section-heading h2 em, .scaling-card h3 em {
   color: transparent;
   font-family: var(--serif);
   font-weight: 400;
@@ -314,8 +314,7 @@ kbd { min-width: 25px; padding: 2px 6px; border: 1px solid #bdc9d6; border-botto
 .trajectory-timeline button { position: relative; min-height: 76px; padding: 12px; border: 0; background: var(--surface); color: var(--muted); text-align: left; cursor: pointer; }.trajectory-timeline button:hover { background: var(--surface-1); }.trajectory-timeline button.active { background: var(--ink); color: white; }.trajectory-timeline button span { display: block; font: 9px var(--mono); }.trajectory-timeline button small { display: -webkit-box; overflow: hidden; margin-top: 6px; font-size: 10px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }.trajectory-timeline button.checkpoint::after { content: "ARM"; position: absolute; top: 8px; right: 8px; padding: 2px 5px; border-radius: 4px; background: var(--green-soft); color: var(--green); font: 7px var(--mono); }
 
 footer { padding: 96px 0 40px; background: #101a2a; color: white; }
-.footer-inner { width: min(100%, var(--max)); margin: auto; padding: 0 34px; display: grid; grid-template-columns: 1fr 0.45fr; gap: 80px; }
-footer h2 { margin: 20px 0 0; font-size: clamp(49px, 6.5vw, 88px); line-height: 0.9; letter-spacing: -0.06em; }
+.footer-inner { width: min(100%, var(--max)); margin: auto; padding: 0 34px; display: flex; justify-content: flex-end; }
 .footer-meta { display: flex; flex-direction: column; align-items: start; justify-content: end; gap: 8px; padding-bottom: 8px; color: #c1ccd7; font-size: 12px; }.footer-meta p { margin: 0 0 14px; color: white; font-weight: 700; }.footer-meta a { text-underline-offset: 4px; }
 
 .reveal { opacity: 0; transform: translateY(12px); transition: opacity 620ms cubic-bezier(0.2, 0, 0, 1), transform 620ms cubic-bezier(0.2, 0, 0, 1); }
@@ -356,7 +355,7 @@ footer h2 { margin: 20px 0 0; font-size: clamp(49px, 6.5vw, 88px); line-height: 
   .compact-card, .scaling-card { grid-column: span 12; min-height: auto; }.slope-chart { padding-top: 42px; }.slope-point strong { font-size: 39px; }
   .diagnostics { padding: 24px 16px; }.diagnostics-head, .diagnostic-grid { grid-template-columns: 1fr; }.diagnostic-body { grid-template-columns: 1fr; }
   .case-tabs button { flex: 1 1 100%; }.trajectory-info { min-height: 430px; padding: 22px; }.trajectory-controls { grid-template-columns: 40px 72px 1fr 40px; padding: 12px; }.speed-control { grid-column: 1/-1; justify-content: end; }.trajectory-timeline { grid-template-columns: repeat(3, 1fr); }.trajectory-timeline button { min-height: 64px; }
-  .footer-inner { grid-template-columns: 1fr; gap: 60px; padding: 0 18px; }
+  .footer-inner { justify-content: flex-start; padding: 0 18px; }
 }
 
 @media (max-width: 430px) {
