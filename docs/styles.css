@@ -294,8 +294,10 @@ kbd { min-width: 25px; padding: 2px 6px; border: 1px solid #bdc9d6; border-botto
 
 .infra { background: linear-gradient(180deg, #edf2f7 0%, #f5f8fb 100%); }
 .infra-heading { max-width: 1080px; }
-.infra-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 22px; margin-top: 60px; }
-.infra-topology { align-self: start; min-width: 0; padding: 30px; border: 1px solid #263a53; border-radius: var(--radius-lg); background: linear-gradient(145deg, #101a2a, #172840); color: white; box-shadow: var(--shadow); }
+.infra-layout { display: grid; gap: 16px; margin-top: 60px; }
+.infra-topology { min-width: 0; padding: 28px; border: 1px solid #263a53; border-radius: var(--radius-lg); background: radial-gradient(circle at 92% 0%, rgba(119, 119, 155, 0.2), transparent 34%), linear-gradient(145deg, #101a2a, #172840); color: white; box-shadow: var(--shadow); }
+.infra-map-head { display: flex; justify-content: space-between; gap: 22px; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #344a63; color: #8da8bc; font: 9px var(--mono); letter-spacing: 0.08em; }
+.infra-map-head small { color: #75899f; font: inherit; letter-spacing: 0; }
 .infra-external { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .infra-external::after { content: ""; position: absolute; top: 50%; left: 50%; width: 16px; border-top: 1px dashed #597089; transform: translate(-50%, -50%); }
 .infra-node { position: relative; min-width: 0; padding: 18px; border: 1px solid #425872; border-radius: 14px; background: #17273b; }
@@ -323,13 +325,19 @@ kbd { min-width: 25px; padding: 2px 6px; border: 1px solid #bdc9d6; border-botto
 .worker { padding: 15px; border-color: #4b627b; background: #132237; }
 .worker::before { content: ""; position: absolute; top: -16px; left: 50%; height: 16px; border-left: 1px solid #557fa3; }
 .worker-more { border-style: dashed; background: #1c2438; }
-.infra-copy { padding: 34px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
-.infra-copy h3 { margin: 15px 0 18px; font: 400 35px/1.05 var(--serif); letter-spacing: -0.025em; }
-.infra-copy p { color: var(--ink-soft); font-size: 13px; }
-.infra-copy ul { display: grid; gap: 10px; margin: 24px 0; padding: 20px 0 20px 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--ink-soft); font-size: 12px; }
-.infra-copy li::marker { color: var(--blue); }
-.infra-copy .infra-caveat { padding: 13px; border-radius: 10px; background: var(--amber); color: white; font-size: 10px; line-height: 1.55; }
-.infra-copy .button { margin-top: 13px; }
+.infra-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.infra-feature { display: flex; flex-direction: column; min-height: 330px; padding: 28px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(248, 250, 252, 0.9); }
+.infra-feature-index { color: var(--blue); font: 9px var(--mono); letter-spacing: 0.07em; }
+.infra-feature h3 { margin: 36px 0 14px; font: 400 31px/1.04 var(--serif); letter-spacing: -0.025em; }
+.infra-feature p { margin: 0; color: var(--ink-soft); font-size: 12px; }
+.infra-feature > small { display: block; margin-top: auto; padding-top: 24px; color: var(--muted); font: 9px/1.55 var(--mono); }
+.feature-egress { background: linear-gradient(145deg, #f4f0eb, #f8fafc 72%); }
+.feature-scale { background: linear-gradient(145deg, #edf3f8, #f8fafc 72%); }
+.feature-guide { border-color: #293d57; background: linear-gradient(145deg, #101a2a, #1a2c44); color: white; }
+.feature-guide .infra-feature-index { color: #90adc5; }.feature-guide p { color: #b7c4d1; }
+.feature-guide .button { width: 100%; margin-top: auto; background: white; color: var(--ink); }
+.infra-source-link { margin-top: 13px; color: #9fb0c1; font: 9px var(--mono); text-align: center; text-underline-offset: 4px; }
+.infra-caveat { margin: 0; padding: 13px 18px; border: 1px dashed #aab7c5; border-radius: 12px; background: rgba(248, 250, 252, 0.62); color: var(--ink-soft); font-size: 10px; }
 
 .trajectory { background: var(--surface-dim); }
 .case-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 42px; }
@@ -372,7 +380,7 @@ footer { padding: 96px 0 40px; background: #101a2a; color: white; }
   .compact-card { grid-column: span 5; }
   .scaling-card { grid-column: span 7; grid-template-columns: 1fr; }
   .loop-card { grid-template-columns: 1fr; }
-  .infra-layout { grid-template-columns: 1fr; }
+  .infra-feature-grid { grid-template-columns: 1fr 1fr; }.feature-guide { grid-column: 1/-1; min-height: 300px; }
   .trajectory-player { grid-template-columns: 1fr; }
   .trajectory-info { min-height: 410px; border-top: 1px solid var(--line); border-left: 0; }
 }
@@ -397,7 +405,7 @@ footer { padding: 96px 0 40px; background: #101a2a; color: white; }
   .bar-group { grid-template-columns: 98px 1fr 49px; }
   .compact-card, .scaling-card { grid-column: span 12; min-height: auto; }.slope-chart { padding-top: 42px; }.slope-point strong { font-size: 39px; }
   .diagnostics { padding: 24px 16px; }.diagnostics-head, .diagnostic-grid { grid-template-columns: 1fr; }.diagnostic-body { grid-template-columns: 1fr; }
-  .infra-layout { margin-top: 42px; }.infra-topology { padding: 18px; }.infra-external, .gateway-row { grid-template-columns: 1fr; }.infra-external::after { display: none; }.worker-grid { grid-template-columns: 1fr; }.worker-bus::before, .worker-bus::after { display: none; }.worker::before { display: none; }.vpc-label { display: grid; gap: 4px; }.infra-copy { padding: 24px 20px; }.infra-copy h3 { font-size: 31px; }
+  .infra-layout { margin-top: 42px; }.infra-topology { padding: 18px; }.infra-map-head { display: grid; gap: 5px; }.infra-external, .gateway-row { grid-template-columns: 1fr; }.infra-external::after { display: none; }.worker-grid { grid-template-columns: 1fr; }.worker-bus::before, .worker-bus::after { display: none; }.worker::before { display: none; }.vpc-label { display: grid; gap: 4px; }.infra-feature-grid { grid-template-columns: 1fr; }.infra-feature, .feature-guide { grid-column: auto; min-height: 300px; padding: 24px 20px; }.infra-feature h3 { margin-top: 28px; font-size: 29px; }
   .case-tabs button { flex: 1 1 100%; }.trajectory-info { min-height: 430px; padding: 22px; }.trajectory-controls { grid-template-columns: 40px 72px 1fr 40px; padding: 12px; }.speed-control { grid-column: 1/-1; justify-content: end; }.trajectory-timeline { grid-template-columns: repeat(3, 1fr); }.trajectory-timeline button { min-height: 64px; }
   .footer-inner { justify-content: flex-start; padding: 0 18px; }
 }

@@ -78,7 +78,8 @@ the agent runtime.
 
 For a reproducible Volcengine guest image, network rules, Coder dependencies, sanitization,
 smoke tests, and the no-EIP + Squid scaling topology for training rollouts, follow the
-**[Volcengine OSWorld v1 Image Guide](docs/volcengine-osworld-v1.md)**.
+**[hosted Volcengine OSWorld v1 Image Guide](https://gade-tech.github.io/GADE-CUA-Evolve/volcengine-osworld-v1.html)**
+or read its [Markdown source](docs/volcengine-osworld-v1.md).
 
 ## Quickstart
 
@@ -206,5 +207,6 @@ deleted.
 
 - [Interactive project website and experiment details](https://gade-tech.github.io/GADE-CUA-Evolve/)
 - [Scalable rollout infrastructure overview](https://gade-tech.github.io/GADE-CUA-Evolve/#infra)
+- [Hosted Volcengine image and infrastructure guide](https://gade-tech.github.io/GADE-CUA-Evolve/volcengine-osworld-v1.html)
 - [Pinned GADE-Tech OSWorld fork](https://github.com/GADE-Tech/OSWorld)
 - [OSWorld benchmark](https://github.com/xlang-ai/OSWorld)
