@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Version static assets
+        run: sed -i "s/__BUILD_VERSION__/${GITHUB_SHA}/g" docs/index.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
