@@ -19,6 +19,7 @@ from gade_cua_evolve.arm_prompts import (
 from gade_cua_evolve.config import ARMConfig, TaskPublicView
 from gade_cua_evolve.envs import EnvAdapter, Observation
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
+from gade_cua_evolve.llm.base import serialize_tool_calls
 
 Verdict = Literal["success", "failed", "infeasible", "error"]
 
@@ -168,10 +169,7 @@ def _assistant_message(response: LLMResponse) -> dict[str, Any]:
     return {
         "role": "assistant",
         "content": response.text,
-        "tool_calls": [
-            {"id": call.id, "name": call.name, "arguments": dict(call.arguments)}
-            for call in response.tool_calls
-        ],
+        "tool_calls": serialize_tool_calls(response),
     }
 
 
@@ -297,6 +295,19 @@ class AgenticRewardModel:
                 status = str(call.arguments.get("status", "failed"))
                 verdict: Verdict = status if status in {"success", "failed", "infeasible"} else "error"
                 rationale = str(call.arguments.get("rationale", "")).strip()
+                method_gap = self._manual_method_evidence_gap(task, plan, trajectory)
+                if verdict == "success" and method_gap:
+                    verdict = "failed"
+                    rationale = method_gap
+                    guard_record = {
+                        "step": step + 1,
+                        "tool": "method_evidence_guard",
+                        "status": "failed",
+                        "rationale": rationale,
+                    }
+                    evidence.append(guard_record)
+                    with log_path.open("a", encoding="utf-8") as handle:
+                        handle.write(json.dumps(guard_record, ensure_ascii=False) + "\n")
                 return VerificationResult(
                     verdict=verdict,
                     rationale=rationale,
@@ -331,6 +342,27 @@ class AgenticRewardModel:
             observation,
             evidence,
             self.config.max_judge_steps,
+        )
+
+    @staticmethod
+    def _manual_method_evidence_gap(
+        task: TaskPublicView,
+        plan: VerificationPlan,
+        trajectory: list[TrajectoryItem],
+    ) -> str | None:
+        requirements = "\n".join([task.instruction, *plan.checklist]).lower()
+        requires_manual_work = "manual" in requirements or "manually" in requirements
+        if not requires_manual_work:
+            return None
+        has_gui_action = any(
+            item.action.strip().upper() not in {"", "WAIT", "DONE", "FAIL"}
+            for item in trajectory
+        )
+        if has_gui_action:
+            return None
+        return (
+            "The task explicitly requires manual GUI work, but the actor trajectory contains no "
+            "executed GUI action. Code-created files do not prove that the manual method was used."
         )
 
     def _execute_tool(

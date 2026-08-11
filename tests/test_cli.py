@@ -93,6 +93,23 @@ def test_free_prompt_cannot_request_native_evaluator() -> None:
         cli.run_task(TaskSpec(instruction="free prompt"), RunConfig(), evaluate=True)
 
 
+def test_component_build_failure_is_recorded_as_error(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        cli,
+        "build_components",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("provider failed")),
+    )
+    config = RunConfig(loop={"output_dir": tmp_path})
+
+    with pytest.raises(RuntimeError, match="provider failed"):
+        cli.run_task(TaskSpec(id="provider-error", instruction="Fail early"), config)
+
+    result_path = next(tmp_path.glob("provider-error-*/result.json"))
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    assert result["status"] == "error"
+    assert result["episodes"] == 0
+
+
 def test_no_args_launches_tui(monkeypatch) -> None:
     from gade_cua_evolve import tui
 

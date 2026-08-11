@@ -10,6 +10,7 @@ from typing import Any
 from gade_cua_evolve.config import CoderConfig
 from gade_cua_evolve.envs import CodeExecutionResult
 from gade_cua_evolve.llm import Client, LLMResponse
+from gade_cua_evolve.llm.base import serialize_tool_calls
 
 CodeExecutor = Callable[[str, str, int], CodeExecutionResult]
 
@@ -18,6 +19,10 @@ CODER_SYSTEM_PROMPT = """You are a coding sub-agent operating inside a disposabl
 You receive an original user task and one narrow planner subtask. Work only on the planner subtask.
 Use code for deterministic backend work such as local file inspection or editing, calculations,
 data processing, and structured transformations. Do not take over visual navigation or layout work.
+Never use code to impersonate an explicitly required manual GUI result. If a delegated subtask mixes
+backend work with a required GUI method, complete only the backend portion and report the remaining
+GUI work to the planner. Saving one code-generated artifact under both filenames is not independent
+evidence that two method-specific requirements were completed.
 
 On every turn call exactly one tool: run_python, run_bash, or finish. Commands have a hard timeout,
 so keep them targeted and bounded. Never inspect credentials, environment secrets, browser login
@@ -25,6 +30,8 @@ state, SSH keys, or unrelated files. If execution fails, inspect the returned er
 Verify the resulting artifact or state before calling finish. A finish call must include a concise
 factual summary and proof copied or paraphrased from the final verification output. The planner will
 independently verify your report; your finish call does not complete the overall user task.
+For edited or generated artifacts, verify the task-specific content and transformation, not merely
+file existence, readability, dimensions, or equality between outputs.
 """
 
 CODER_TOOLS = [
@@ -86,10 +93,7 @@ def _assistant_message(response: LLMResponse) -> dict[str, Any]:
     return {
         "role": "assistant",
         "content": response.text,
-        "tool_calls": [
-            {"id": call.id, "name": call.name, "arguments": dict(call.arguments)}
-            for call in response.tool_calls
-        ],
+        "tool_calls": serialize_tool_calls(response),
     }
 
 

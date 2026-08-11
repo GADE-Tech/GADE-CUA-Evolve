@@ -96,6 +96,9 @@ class GoogleGenAIClient(Client):
                         id=function_call.id or f"call_{uuid.uuid4().hex}",
                         name=function_call.name or "",
                         arguments=dict(function_call.args or {}),
+                        thought_signature=self._encode_thought_signature(
+                            getattr(part, "thought_signature", None)
+                        ),
                     )
                 )
             elif part.text:
@@ -161,17 +164,32 @@ class GoogleGenAIClient(Client):
 
             parts = cls._content_parts(message.get("content", ""))
             for call in message.get("tool_calls", []) or []:
-                parts.append(
-                    types.Part.from_function_call(
-                        name=str(call.get("name", "")),
-                        args=dict(call.get("arguments", {})),
-                    )
+                part = types.Part.from_function_call(
+                    name=str(call.get("name", "")),
+                    args=dict(call.get("arguments", {})),
                 )
+                signature = call.get("thought_signature")
+                if signature:
+                    try:
+                        part.thought_signature = base64.b64decode(
+                            str(signature), validate=True
+                        )
+                    except (ValueError, TypeError) as exc:
+                        raise ValueError("Invalid base64 Gemini thought signature") from exc
+                parts.append(part)
             if parts:
                 contents.append(
                     types.Content(role="model" if role == "assistant" else "user", parts=parts)
                 )
         return "\n\n".join(systems) or None, contents
+
+    @staticmethod
+    def _encode_thought_signature(signature: Any) -> str | None:
+        if not signature:
+            return None
+        if isinstance(signature, str):
+            signature = signature.encode("utf-8")
+        return base64.b64encode(bytes(signature)).decode("ascii")
 
     @staticmethod
     def _text_values(content: Any) -> list[str]:

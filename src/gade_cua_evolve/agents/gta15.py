@@ -10,6 +10,7 @@ from typing import Any
 from gade_cua_evolve.config import AgentConfig
 from gade_cua_evolve.envs import Observation, StepOutcome
 from gade_cua_evolve.llm import Client, LLMResponse, ToolCall
+from gade_cua_evolve.llm.base import serialize_tool_calls
 
 from .base import Agent, AgentStep
 from .coder import CodeExecutor, CoderAgent, CoderResult
@@ -30,10 +31,7 @@ def _assistant_message(response: LLMResponse) -> dict[str, Any]:
     return {
         "role": "assistant",
         "content": content,
-        "tool_calls": [
-            {"id": call.id, "name": call.name, "arguments": dict(call.arguments)}
-            for call in response.tool_calls
-        ],
+        "tool_calls": serialize_tool_calls(response),
     }
 
 

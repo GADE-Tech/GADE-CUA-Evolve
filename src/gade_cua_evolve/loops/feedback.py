@@ -204,6 +204,9 @@ class AgenticFeedbackLoop(AgentLoop):
                     raise ValueError("Native evaluation requires a task with an OSWorld evaluator")
                 score = self.env.evaluate()
                 self.controller.emit("native_score", f"Native evaluator score: {score}", score=score)
+        except Exception:
+            status = "error"
+            raise
         finally:
             try:
                 if recording:
