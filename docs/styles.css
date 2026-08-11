@@ -175,7 +175,10 @@ button, a, summary, input, select { -webkit-tap-highlight-color: transparent; }
 .button-primary:hover { background: #263d5b; }
 .button-secondary { border-color: var(--line); background: white; color: var(--ink); }
 kbd { min-width: 25px; padding: 2px 6px; border: 1px solid #bdc9d6; border-bottom-width: 2px; border-radius: 6px; background: var(--surface-1); color: var(--ink-soft); font: 600 11px/1.6 var(--mono); text-align: center; }
-.hero-caption { margin: 26px 0 0; color: var(--muted); font: 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.hero-caption { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin: 26px 0 0; color: var(--muted); font: 10px var(--mono); letter-spacing: 0.02em; }
+.hero-caption span { margin-right: 4px; color: var(--blue); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.hero-caption b { color: var(--ink-soft); font-weight: 500; }
+.hero-caption i { color: #aab7c5; font-style: normal; }
 
 .hero-stage { position: relative; min-height: 590px; isolation: isolate; }
 .desktop-card { position: absolute; overflow: hidden; border: 1px solid rgba(52, 76, 104, 0.2); border-radius: 18px; background: #101824; box-shadow: var(--shadow); }
@@ -315,7 +318,7 @@ kbd { min-width: 25px; padding: 2px 6px; border: 1px solid #bdc9d6; border-botto
 
 footer { padding: 96px 0 40px; background: #101a2a; color: white; }
 .footer-inner { width: min(100%, var(--max)); margin: auto; padding: 0 34px; display: flex; justify-content: flex-end; }
-.footer-meta { display: flex; flex-direction: column; align-items: start; justify-content: end; gap: 8px; padding-bottom: 8px; color: #c1ccd7; font-size: 12px; }.footer-meta p { margin: 0 0 14px; color: white; font-weight: 700; }.footer-meta a { text-underline-offset: 4px; }
+.footer-meta { display: flex; flex-direction: column; align-items: start; justify-content: end; gap: 8px; padding-bottom: 8px; color: #c1ccd7; font-size: 12px; }.footer-meta a { text-underline-offset: 4px; }
 
 .reveal { opacity: 0; transform: translateY(12px); transition: opacity 620ms cubic-bezier(0.2, 0, 0, 1), transform 620ms cubic-bezier(0.2, 0, 0, 1); }
 .reveal.is-visible { opacity: 1; transform: none; }

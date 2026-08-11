@@ -522,7 +522,6 @@
   renderDiagnostics();
   buildLoopDemo();
   buildTrajectory();
-  document.querySelector("#footerAuthor").textContent = data.project.author;
   drawScalingChart();
   let resizeTimer;
   window.addEventListener("resize", () => {

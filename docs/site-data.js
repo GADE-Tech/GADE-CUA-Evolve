@@ -1,7 +1,7 @@
 window.GADE_SITE_DATA = {
   project: {
     name: "GADE CUA Evolve",
-    author: "YOUR NAME / Author TBD",
+    author: "Author One · Author Two · Author Three · Author Four",
     github: "https://github.com/GADE-Tech/GADE-CUA-Evolve",
     description: "A composable computer-use agent runtime where ARM checks real desktop outcomes and turns evidence into stop-or-retry decisions."
   },
