@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="GADE CUA Evolve is a composable computer-use agent runtime where ARM verifies real desktop outcomes and returns evidence-backed feedback.">
+  <meta name="description" content="GADE CUA Evolve is a self-evolving computer-use agent system built around a Planner, Grounder, and Agentic Reward Model.">
   <meta name="author" content="YOUR NAME / Author TBD">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="GADE CUA Evolve — When one attempt is not enough">
-  <meta property="og:description" content="A research note on self-evolving computer-use agents and Agentic Reward Models.">
+  <meta property="og:title" content="GADE CUA Evolve — A self-evolving computer-use agent system">
+  <meta property="og:description" content="Planner acts, Grounder locates, and ARM turns desktop evidence into stop-or-retry feedback.">
   <meta property="og:url" content="https://gade-tech.github.io/GADE-CUA-Evolve/">
   <meta property="og:image" content="https://gade-tech.github.io/GADE-CUA-Evolve/assets/hero/gimp.webp">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://gade-tech.github.io/GADE-CUA-Evolve/">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b2220'/%3E%3Ccircle cx='24' cy='32' r='7' fill='%23ef7d67'/%3E%3Ccircle cx='40' cy='24' r='7' fill='%2383a9ee'/%3E%3Ccircle cx='40' cy='40' r='7' fill='%23e5b4a8'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101a2a'/%3E%3Ccircle cx='24' cy='32' r='7' fill='%23557fa3'/%3E%3Ccircle cx='40' cy='24' r='7' fill='%2377779b'/%3E%3Ccircle cx='40' cy='40' r='7' fill='%238da8bc'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <title>GADE CUA Evolve — When one attempt is not enough</title>
+  <title>GADE CUA Evolve — A self-evolving computer-use agent system</title>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -42,14 +42,19 @@
       <div class="aurora aurora-b" aria-hidden="true"></div>
       <div class="hero-inner">
         <div class="hero-copy reveal">
-          <div class="eyebrow-chip"><span></span> Composable computer-use runtime</div>
-          <h1>When one attempt<br>is <em>not enough.</em></h1>
-          <p class="hero-lede">The Actor operates a real computer. ARM reads the resulting desktop state and trajectory evidence, then decides whether to stop—or return feedback for another episode.</p>
+          <div class="eyebrow-chip"><span></span> Self-evolve · GUI + Coding</div>
+          <h1>A self-evolving<br><em>computer-use agent</em><br>system.</h1>
+          <p class="hero-lede">Planner decides the next thought, GUI action, or code. Grounder turns visual intent into precise interaction. ARM verifies the resulting desktop state and sends evidence-backed feedback into the next episode.</p>
+          <div class="agent-roles" aria-label="Planner, Grounder, and ARM system roles">
+            <article><span>01</span><strong>Planner</strong><small>Reasons and chooses actions</small></article>
+            <article><span>02</span><strong>Grounder</strong><small>Locates and confirms targets</small></article>
+            <article><span>03</span><strong>ARM</strong><small>Verifies, stops, or retries</small></article>
+          </div>
           <div class="hero-actions">
             <a class="button button-primary" href="https://github.com/GADE-Tech/GADE-CUA-Evolve">Explore on GitHub <span aria-hidden="true">↗</span></a>
             <a class="button button-secondary" id="exampleLink" href="#trajectory">See an example <kbd>E</kbd></a>
           </div>
-          <p class="hero-caption">Open runtime · Isolated desktops · Inspectable trajectories</p>
+          <p class="hero-caption">Open runtime · Isolated desktops · Inspectable self-evolution</p>
         </div>
 
         <div class="hero-stage reveal" aria-label="Real desktop executions and benchmark highlights">
@@ -63,7 +68,7 @@
             <span class="hero-click" aria-hidden="true"></span>
           </div>
           <div class="cursor-trail" aria-hidden="true"><i></i><i></i><i></i><b>↖</b></div>
-          <div class="score-panel" id="heroScores" aria-label="Best project experiment results"></div>
+          <div class="score-panel" id="heroScores" aria-label="Featured project experiment results"></div>
         </div>
       </div>
     </header>
@@ -82,21 +87,27 @@
           <article><span>03</span><h3>Feedback that changes action</h3><p>Failed checks become context for the next episode. Success or infeasible ends the loop.</p></article>
         </div>
 
-        <div class="loop-card reveal" aria-label="Self-evolve system flow">
+        <div class="loop-card reveal" aria-label="Animated self-evolve example from an OSWorld task">
           <div class="loop-copy">
-            <span class="micro-label">THE RUNTIME PATH</span>
+            <span class="micro-label">REAL OSWORLD IMPROVEMENT CASE</span>
             <h3>Actions move forward.<br>Evidence loops back.</h3>
-            <p>Client calls stay behind the Actor boundary. EnvAdapter owns the isolated computer. Trajectory Recorder turns every action into inspectable evidence.</p>
+            <p>The Actor adds the requested Profit formulas and stops because the GUI looks correct. ARM checks the saved workbook, catches the missing save, and returns one concrete instruction: save before finishing.</p>
+            <div class="loop-result"><span>EPISODE 01</span><b>NOT SAVED</b><i>→</i><span>EPISODE 02</span><b>SUCCESS</b></div>
           </div>
-          <div class="loop-flow">
-            <div class="flow-node"><small>INPUT</small><strong>Task</strong></div><span class="flow-arrow">→</span>
-            <div class="flow-node"><small>DECIDE</small><strong>Actor + Client</strong></div><span class="flow-arrow">→</span>
-            <div class="flow-node"><small>EXECUTE</small><strong>EnvAdapter</strong></div><span class="flow-arrow">→</span>
-            <div class="flow-node"><small>OBSERVE</small><strong>Desktop State</strong></div>
-            <div class="flow-return" aria-hidden="true"></div>
-            <div class="flow-node flow-recorder"><small>EVIDENCE</small><strong>Trajectory Recorder</strong></div><span class="flow-arrow">→</span>
-            <div class="flow-node flow-arm"><small>CHECKPOINT</small><strong>ARM</strong><em>success / feedback / infeasible</em></div><span class="flow-arrow retry">↺</span>
-            <div class="flow-node"><small>DECISION</small><strong>Stop or Retry</strong></div>
+          <div class="loop-demo" id="loopDemo">
+            <div class="loop-screen">
+              <img id="loopImage" src="assets/trajectories/osworld-profit/initial.webp" alt="OSWorld LibreOffice Calc task state" width="1920" height="1080">
+              <div class="loop-screen-bar"><span>OSWORLD · UBUNTU · CALC</span><span id="loopEpisode">EPISODE 01</span></div>
+              <div class="loop-event" id="loopEvent" aria-live="polite">
+                <span id="loopPhase">TASK</span>
+                <strong id="loopTitle">Add a Profit column and calculate Sales − COGS.</strong>
+                <p id="loopDetail">The workbook starts without the requested result.</p>
+              </div>
+            </div>
+            <div class="loop-controls">
+              <div class="loop-rail" id="loopRail" aria-label="Self-evolve example steps"></div>
+              <button id="loopToggle" type="button" aria-label="Pause self-evolve example">Pause</button>
+            </div>
           </div>
         </div>
       </div>
@@ -147,29 +158,27 @@
         <div class="section-heading reveal">
           <div class="section-tag"><span>03</span> GUI Trajectory Lab</div>
           <h2>Watch the agent act—and <em>ARM decide.</em></h2>
-          <p>A real OSWorld GIMP run: one task instruction, five mouse actions, and one evidence-backed success verdict.</p>
+          <p>Two real improvement cases from the attached runs: Ubuntu cases are labeled OSWorld; Windows cases are labeled Windows Agent Arena. In both, ARM catches a plausible-looking failure and changes the next episode.</p>
         </div>
 
-        <div class="trajectory-player reveal" id="trajectoryPlayer" tabindex="-1" aria-label="Interactive GIMP trajectory player">
+        <div class="case-tabs reveal" id="caseTabs" role="tablist" aria-label="Choose a trajectory case"></div>
+
+        <div class="trajectory-player reveal" id="trajectoryPlayer" tabindex="-1" aria-label="Interactive self-evolve trajectory player">
           <div class="trajectory-screen" id="trajectoryScreen">
-            <img id="trajectoryImage" src="assets/trajectories/gimp-open-vignette/initial.webp" alt="Initial GIMP desktop state" width="1440" height="810">
+            <img id="trajectoryImage" src="assets/trajectories/osworld-profit/initial.webp" alt="Initial OSWorld LibreOffice Calc state" width="1920" height="1080" decoding="async">
             <span class="click-marker" id="clickMarker" hidden aria-hidden="true"><i></i></span>
-            <div class="screen-chrome"><span>OSWORLD / GIMP</span><span id="screenStep">STEP 00 / 05</span></div>
+            <div class="trajectory-image-error" id="trajectoryImageError" hidden>Screenshot unavailable. Choose another step to retry.</div>
+            <div class="screen-chrome"><span id="trajectoryEnvironment">OSWORLD · UBUNTU · CALC</span><span id="screenStep">STEP 01 / 06</span></div>
           </div>
 
           <aside class="trajectory-info">
             <div>
               <span class="micro-label">TASK INSTRUCTION</span>
-              <h3 id="trajectoryTitle">Open the Vignette filter window.</h3>
+              <h3 id="trajectoryTitle">Add and save a Profit column.</h3>
               <blockquote id="trajectoryInstruction"></blockquote>
             </div>
             <div class="action-readout"><span id="actionType">INITIAL STATE</span><p id="actionLabel">Initial desktop state</p></div>
-            <div class="arm-verdict" id="armVerdict">
-              <div class="verdict-top"><span>ARM CHECKPOINT · EPISODE 01</span><b>SUCCESS</b></div>
-              <ul id="armChecklist"></ul>
-              <p id="armRationale"></p>
-              <small>NEXT EPISODE · NO</small>
-            </div>
+            <div class="arm-verdict" id="armVerdict" hidden></div>
           </aside>
 
           <div class="trajectory-controls">
