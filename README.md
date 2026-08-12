@@ -205,9 +205,13 @@ deleted.
 
 ## Acknowledgements
 
-We thank the creators of GTA for the action-agent design that informed the Planner and Grounder,
-OSWorld for its real-computer environment and benchmark, and WindowsAgentArena for its Windows
-computer-use evaluation work.
+- [GTA1](https://github.com/Yan98/GTA1) for the action-agent design that informed the Planner
+  and Grounder.
+- [OSWorld](https://github.com/xlang-ai/OSWorld) for its real-computer environment and benchmark.
+  This project uses [GADE-Tech/OSWorld](https://github.com/GADE-Tech/OSWorld); its only code-level
+  changes are adaptations for Volcengine.
+- [Windows Agent Arena](https://github.com/microsoft/WindowsAgentArena) for its Windows
+  computer-use evaluation work.
 
 ## Project links
 
