@@ -203,6 +203,12 @@ be enabled against a personal machine, a persistent desktop, or an image contain
 credentials. After interrupted cloud runs, always verify that temporary instances and EIPs were
 deleted.
 
+## Acknowledgements
+
+We thank the creators of GTA for the action-agent design that informed the Planner and Grounder,
+OSWorld for its real-computer environment and benchmark, and WindowsAgentArena for its Windows
+computer-use evaluation work.
+
 ## Project links
 
 - [Interactive project website and experiment details](https://gade-tech.github.io/GADE-CUA-Evolve/)

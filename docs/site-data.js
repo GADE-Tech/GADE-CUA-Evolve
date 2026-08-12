@@ -1,7 +1,7 @@
 window.GADE_SITE_DATA = {
   project: {
     name: "GADE CUA Evolve",
-    author: "Author One · Author Two · Author Three · Author Four",
+    author: "Bofei Zhang · Yiding Liu",
     github: "https://github.com/GADE-Tech/GADE-CUA-Evolve",
     description: "A self-evolving computer-use agent and scalable OSWorld rollout runtime where Planner, Grounder, Coder, and ARM act, verify, and improve from real desktop outcomes."
   },

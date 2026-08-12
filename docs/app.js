@@ -31,6 +31,15 @@
     scrollToTrajectory(true);
   });
 
+  const citationKey = document.querySelector("#citationKey");
+  document.querySelector("#copyCitationKey")?.addEventListener("click", async (event) => {
+    if (!citationKey || !navigator.clipboard?.writeText) return;
+    const button = event.currentTarget;
+    await navigator.clipboard.writeText(citationKey.textContent);
+    button.textContent = "Copied";
+    window.setTimeout(() => { button.textContent = "Copy"; }, 1600);
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.key.toLowerCase() === "e" && !isTypingTarget(event.target)) {
