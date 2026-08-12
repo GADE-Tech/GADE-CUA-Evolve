@@ -105,9 +105,11 @@
       return `
         <div class="bar-group">
           <span class="bar-name">${model.name}</span>
-          <div class="bar-track"><div class="bar-fill" style="--value:${model.baseline}"></div><span class="bar-type">base</span></div>
+          <span class="bar-series">Base</span>
+          <div class="bar-track"><div class="bar-fill" style="--value:${model.baseline}"></div></div>
           <span class="bar-value">${formatScore(model.baseline, precision)}</span>
-          <div class="bar-track"><div class="bar-fill evolve" style="--value:${model.evolve}"></div><span class="bar-type">ARM</span></div>
+          <span class="bar-series evolve">ARM</span>
+          <div class="bar-track"><div class="bar-fill evolve" style="--value:${model.evolve}"></div></div>
           <span class="bar-value evolve">${formatScore(model.evolve, precision)}</span>
           <span class="lift-label">+${lift.toFixed(2).replace(/0$/, "")} percentage points</span>
         </div>`;

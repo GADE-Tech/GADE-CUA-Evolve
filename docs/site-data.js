@@ -14,7 +14,7 @@ window.GADE_SITE_DATA = {
     },
     {
       label: "Windows Agent Arena",
-      detail: "Best Self-Evolve · Gemini 3.1",
+      detail: "Best Self-Evolve · Gemini 3.1 Pro",
       value: 72.54,
       precision: 2
     }
@@ -34,7 +34,7 @@ window.GADE_SITE_DATA = {
       href: "https://github.com/microsoft/WindowsAgentArena",
       note: "Success rate · 152 tasks",
       models: [
-        { name: "Gemini 3.1", baseline: 66.74, evolve: 72.54 },
+        { name: "Gemini 3.1 Pro", baseline: 66.74, evolve: 72.54 },
         { name: "Qwen 3.5-27B", baseline: 51.2, evolve: 56.5 }
       ],
       gtJudge: 75.47
