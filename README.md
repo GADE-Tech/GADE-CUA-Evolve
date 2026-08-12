@@ -213,6 +213,23 @@ deleted.
 - [Windows Agent Arena](https://github.com/microsoft/WindowsAgentArena) for its Windows
   computer-use evaluation work.
 
+## Citation
+
+```bibtex
+@misc{zhang2026gadecuaevolve,
+  title  = {GADE CUA Evolve: A Self-Evolving Multi-Agent System
+            for Computer Use},
+  author = {Zhang, Bofei and Liu, Yiding},
+  year   = {2026},
+  url    = {https://gade-tech.github.io/GADE-CUA-Evolve/}
+}
+```
+
+## Contact
+
+For questions, contact Bofei Zhang at
+[zhangbofei5675@outlook.com](mailto:zhangbofei5675@outlook.com).
+
 ## Project links
 
 - [Interactive project website and experiment details](https://gade-tech.github.io/GADE-CUA-Evolve/)

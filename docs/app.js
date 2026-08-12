@@ -31,13 +31,13 @@
     scrollToTrajectory(true);
   });
 
-  const citationKey = document.querySelector("#citationKey");
-  document.querySelector("#copyCitationKey")?.addEventListener("click", async (event) => {
-    if (!citationKey || !navigator.clipboard?.writeText) return;
+  const citationBibtex = document.querySelector("#citationBibtex");
+  document.querySelector("#copyCitation")?.addEventListener("click", async (event) => {
+    if (!citationBibtex || !navigator.clipboard?.writeText) return;
     const button = event.currentTarget;
-    await navigator.clipboard.writeText(citationKey.textContent);
+    await navigator.clipboard.writeText(citationBibtex.textContent);
     button.textContent = "Copied";
-    window.setTimeout(() => { button.textContent = "Copy"; }, 1600);
+    window.setTimeout(() => { button.textContent = "Copy BibTeX"; }, 1600);
   });
 
   document.addEventListener("keydown", (event) => {
